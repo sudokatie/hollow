@@ -3,6 +3,10 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
+use crossterm::terminal::size;
+
+const MIN_COLS: u16 = 40;
+const MIN_ROWS: u16 = 10;
 use ratatui::{backend::CrosstermBackend, Terminal};
 
 use crate::config::Config;
@@ -35,6 +39,8 @@ pub struct App {
     pub search_input: String,
     pub should_quit: bool,
     pub last_save: Instant,
+    pub saved_indicator: Option<Instant>, // Shows "Saved" briefly per spec 5.3
+    pub terminal_too_small: bool,
 }
 
 impl App {
@@ -59,6 +65,8 @@ impl App {
             search_input: String::new(),
             should_quit: false,
             last_save: Instant::now(),
+            saved_indicator: None,
+            terminal_too_small: false,
             config,
         })
     }
@@ -66,8 +74,26 @@ impl App {
     /// Run the main application loop
     pub fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
         loop {
+            // Check terminal size (spec 10.2)
+            if let Ok((cols, rows)) = size() {
+                self.terminal_too_small = cols < MIN_COLS || rows < MIN_ROWS;
+            }
+
             // Render
             terminal.draw(|f| {
+                // Show size warning if terminal too small
+                if self.terminal_too_small {
+                    let area = f.area();
+                    let msg = format!(
+                        "Terminal too small\nMinimum: {}x{}",
+                        MIN_COLS, MIN_ROWS
+                    );
+                    let paragraph = ratatui::widgets::Paragraph::new(msg)
+                        .alignment(ratatui::layout::Alignment::Center);
+                    f.render_widget(paragraph, area);
+                    return;
+                }
+
                 let content = self.editor.content().to_string();
                 let (cursor_line, cursor_col) = self.editor.cursor_position();
                 let matches = self.search.all_matches(self.editor.content());
@@ -87,6 +113,7 @@ impl App {
                     search_query: &self.search_input,
                     search_matches: &matches,
                     text_width: self.config.editor.text_width,
+                    show_saved_indicator: self.saved_indicator.is_some(),
                 };
 
                 ui::render(f, &state);
@@ -149,23 +176,43 @@ impl App {
             Action::None => {}
             Action::Quit => self.try_quit(),
             Action::Save => {
-                let _ = self.editor.save(&self.file_path);
-                self.last_save = Instant::now();
+                if self.editor.save(&self.file_path).is_ok() {
+                    self.last_save = Instant::now();
+                    self.saved_indicator = Some(Instant::now());
+                }
             }
 
-            // Text input
-            Action::InsertChar(c) => self.editor.insert_char(c),
-            Action::InsertNewline => self.editor.insert_newline(),
-            Action::DeleteChar => self.editor.delete_char(),
-            Action::DeleteCharForward => self.editor.delete_char_forward(),
+            // Text input (create backup on first edit per spec 5.4)
+            Action::InsertChar(c) => {
+                let _ = self.editor.create_backup_if_needed(&self.file_path);
+                self.editor.insert_char(c);
+            }
+            Action::InsertNewline => {
+                let _ = self.editor.create_backup_if_needed(&self.file_path);
+                self.editor.insert_newline();
+            }
+            Action::DeleteChar => {
+                let _ = self.editor.create_backup_if_needed(&self.file_path);
+                self.editor.delete_char();
+            }
+            Action::DeleteCharForward => {
+                let _ = self.editor.create_backup_if_needed(&self.file_path);
+                self.editor.delete_char_forward();
+            }
 
             // Movement
             Action::MoveCursor(dir, unit) => self.editor.move_cursor(dir, unit),
 
             // Line operations
-            Action::DeleteLine => self.editor.delete_line(),
+            Action::DeleteLine => {
+                let _ = self.editor.create_backup_if_needed(&self.file_path);
+                self.editor.delete_line();
+            }
             Action::CopyLine => self.editor.copy_line(),
-            Action::Paste => self.editor.paste(),
+            Action::Paste => {
+                let _ = self.editor.create_backup_if_needed(&self.file_path);
+                self.editor.paste();
+            }
 
             // Undo/redo
             Action::Undo => self.editor.undo(),
@@ -174,6 +221,10 @@ impl App {
             // Mode changes
             Action::EnterNavigateMode => self.mode = Mode::Navigate,
             Action::EnterWriteMode => self.mode = Mode::Write,
+            Action::EnterWriteModeWithChar(c) => {
+                self.mode = Mode::Write;
+                self.editor.insert_char(c);
+            }
 
             // UI
             Action::ToggleStatus => {
@@ -193,26 +244,22 @@ impl App {
             Action::SubmitSearch => {
                 self.search.set_query(&self.search_input);
                 self.mode = Mode::Navigate;
-                // Find first match
-                let (_, cursor_col) = self.editor.cursor_position();
-                if let Some((start, _)) = self.search.find_next(self.editor.content(), cursor_col) {
-                    self.editor
-                        .move_cursor(crate::editor::Direction::Up, crate::editor::Unit::Document);
-                    // TODO: Move to match position
-                }
+                // Find first match from cursor position
+                self.jump_to_next_match();
             }
             Action::CancelSearch => {
                 self.mode = Mode::Navigate;
                 self.search_input.clear();
+                self.search.clear();
             }
             Action::SearchNext => {
                 if self.search.is_active() {
-                    // TODO: Implement search navigation
+                    self.jump_to_next_match();
                 }
             }
             Action::SearchPrev => {
                 if self.search.is_active() {
-                    // TODO: Implement search navigation
+                    self.jump_to_prev_match();
                 }
             }
             Action::SearchInput(c) => self.search_input.push(c),
@@ -242,6 +289,14 @@ impl App {
         if elapsed >= self.config.editor.auto_save_seconds && self.editor.is_modified() {
             self.editor.save(&self.file_path)?;
             self.last_save = Instant::now();
+            self.saved_indicator = Some(Instant::now()); // Show "Saved" indicator per spec 5.3
+        }
+
+        // Clear saved indicator after 2 seconds
+        if let Some(saved_time) = self.saved_indicator {
+            if saved_time.elapsed().as_secs() >= 2 {
+                self.saved_indicator = None;
+            }
         }
 
         Ok(())
@@ -257,6 +312,53 @@ impl App {
                 self.show_status = false;
                 self.status_timer = None;
             }
+        }
+    }
+
+    /// Jump to next search match
+    fn jump_to_next_match(&mut self) {
+        let cursor_char = self.cursor_to_char_pos();
+        if let Some((start, _)) = self.search.find_next(self.editor.content(), cursor_char + 1) {
+            self.set_cursor_from_char_pos(start);
+        }
+    }
+
+    /// Jump to previous search match
+    fn jump_to_prev_match(&mut self) {
+        let cursor_char = self.cursor_to_char_pos();
+        if let Some((start, _)) = self.search.find_prev(self.editor.content(), cursor_char) {
+            self.set_cursor_from_char_pos(start);
+        }
+    }
+
+    /// Convert current cursor position to char offset in rope
+    fn cursor_to_char_pos(&self) -> usize {
+        let content = self.editor.content();
+        let (line, col) = self.editor.cursor_position();
+        if line >= content.len_lines() {
+            return content.len_chars();
+        }
+        let line_start = content.line_to_char(line);
+        let line_len = content.line(line).len_chars();
+        line_start + col.min(line_len)
+    }
+
+    /// Set cursor position from char offset in rope
+    fn set_cursor_from_char_pos(&mut self, char_pos: usize) {
+        let content = self.editor.content();
+        let clamped = char_pos.min(content.len_chars());
+        let target_line = content.char_to_line(clamped);
+        let line_start = content.line_to_char(target_line);
+        let target_col = clamped - line_start;
+
+        // Move to document start first, then navigate to target
+        self.editor.move_cursor(crate::editor::Direction::Up, crate::editor::Unit::Document);
+        for _ in 0..target_line {
+            self.editor.move_cursor(crate::editor::Direction::Down, crate::editor::Unit::Line);
+        }
+        self.editor.move_cursor(crate::editor::Direction::Left, crate::editor::Unit::Line);
+        for _ in 0..target_col {
+            self.editor.move_cursor(crate::editor::Direction::Right, crate::editor::Unit::Char);
         }
     }
 }

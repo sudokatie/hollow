@@ -1,5 +1,4 @@
 use std::fs;
-use std::path::Path;
 use tempfile::tempdir;
 
 // Note: We can't easily test the full TUI app in integration tests,
@@ -166,8 +165,6 @@ mod word_count {
 }
 
 mod config_integration {
-    use std::env;
-
     #[test]
     fn test_config_dir_exists() {
         // dirs::config_dir() should return something on most systems

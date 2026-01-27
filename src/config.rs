@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub editor: EditorConfig,
@@ -42,15 +42,6 @@ fn default_auto_save_seconds() -> u64 {
 
 fn default_status_timeout() -> u64 {
     3
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            editor: EditorConfig::default(),
-            display: DisplayConfig::default(),
-        }
-    }
 }
 
 impl Default for EditorConfig {

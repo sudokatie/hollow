@@ -2,6 +2,7 @@ use ropey::Rope;
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
+use std::time::Instant;
 
 /// Direction for cursor movement
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -40,6 +41,9 @@ pub struct Editor {
     undo_stack: Vec<UndoItem>,
     redo_stack: Vec<UndoItem>,
     sticky_col: Option<usize>,
+    last_edit_time: Option<Instant>,
+    backup_created: bool,
+    original_content: Option<String>,
 }
 
 impl Editor {
@@ -54,6 +58,9 @@ impl Editor {
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
             sticky_col: None,
+            last_edit_time: None,
+            backup_created: false,
+            original_content: None,
         }
     }
 
@@ -64,16 +71,38 @@ impl Editor {
             // Normalize line endings to LF
             let normalized = content.replace("\r\n", "\n").replace("\r", "\n");
             self.rope = Rope::from_str(&normalized);
+            // Store original content for backup on first edit
+            self.original_content = Some(normalized);
         } else {
             // New file - start empty
             self.rope = Rope::new();
+            self.original_content = None;
         }
         self.cursor_line = 0;
         self.cursor_col = 0;
         self.modified = false;
+        self.backup_created = false;
         self.undo_stack.clear();
         self.redo_stack.clear();
         Ok(())
+    }
+
+    /// Create backup file on first edit (per spec 5.4)
+    pub fn create_backup_if_needed(&mut self, path: &Path) -> io::Result<()> {
+        if self.backup_created {
+            return Ok(());
+        }
+        if let Some(ref original) = self.original_content {
+            let backup_path = path.with_extension("hollow-backup");
+            fs::write(&backup_path, original)?;
+        }
+        self.backup_created = true;
+        Ok(())
+    }
+
+    /// Check if this is the first edit (backup needed)
+    pub fn needs_backup(&self) -> bool {
+        !self.backup_created && self.original_content.is_some()
     }
 
     /// Save editor contents to file
@@ -102,6 +131,7 @@ impl Editor {
         fs::rename(&temp_path, path)?;
 
         self.modified = false;
+        self.mark_undo_boundary(); // Force new undo group after save per spec 4.2
         Ok(())
     }
 
@@ -302,9 +332,35 @@ impl Editor {
     }
 
     /// Push an undo item, clearing the redo stack
+    /// Groups rapid edits (within 2 seconds) into a single undo unit per spec 4.2
     fn push_undo(&mut self, item: UndoItem) {
-        self.undo_stack.push(item);
+        let now = Instant::now();
+        let should_group = self.last_edit_time
+            .map(|t| now.duration_since(t).as_secs() < 2)
+            .unwrap_or(false);
+
+        if should_group && !self.undo_stack.is_empty() {
+            // Group with previous item
+            let prev = self.undo_stack.pop().unwrap();
+            let grouped = match prev {
+                UndoItem::Group(mut items) => {
+                    items.push(item);
+                    UndoItem::Group(items)
+                }
+                other => UndoItem::Group(vec![other, item]),
+            };
+            self.undo_stack.push(grouped);
+        } else {
+            self.undo_stack.push(item);
+        }
+
+        self.last_edit_time = Some(now);
         self.redo_stack.clear();
+    }
+
+    /// Force a new undo group (called on save)
+    pub fn mark_undo_boundary(&mut self) {
+        self.last_edit_time = None;
     }
 
     /// Move cursor in the given direction by the given unit
@@ -734,6 +790,8 @@ mod tests {
     fn test_undo_redo() {
         let mut editor = Editor::new();
         editor.insert_char('a');
+        // Force undo boundary so each char is separate undo unit
+        editor.mark_undo_boundary();
         editor.insert_char('b');
         assert_eq!(editor.content().to_string(), "ab");
 

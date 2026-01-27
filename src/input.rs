@@ -33,6 +33,7 @@ pub enum Action {
     // Mode changes
     EnterNavigateMode,
     EnterWriteMode,
+    EnterWriteModeWithChar(char), // Enter write mode and insert char (per spec 3.1)
     // UI
     ToggleStatus,
     ShowHelp,
@@ -223,6 +224,11 @@ fn handle_navigate_mode(key: KeyEvent, state: &mut InputState) -> Action {
         KeyCode::End => Action::MoveCursor(Direction::Right, Unit::Line),
         KeyCode::PageUp => Action::MoveCursor(Direction::Up, Unit::Page(20)),
         KeyCode::PageDown => Action::MoveCursor(Direction::Down, Unit::Page(20)),
+
+        // Per spec 3.1: Any printable character returns to Write mode AND inserts
+        KeyCode::Char(c) if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT => {
+            Action::EnterWriteModeWithChar(c)
+        }
 
         _ => Action::None,
     }

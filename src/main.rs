@@ -12,9 +12,12 @@ use std::process;
 
 use crossterm::{
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{disable_raw_mode, enable_raw_mode, size, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
+
+const MIN_COLS: u16 = 40;
+const MIN_ROWS: u16 = 10;
 
 use app::App;
 use config::Config;
@@ -87,6 +90,16 @@ fn run() -> io::Result<()> {
         let _ = execute!(io::stdout(), LeaveAlternateScreen);
         original_hook(info);
     }));
+
+    // Check minimum terminal size (spec 10.2)
+    let (cols, rows) = size()?;
+    if cols < MIN_COLS || rows < MIN_ROWS {
+        eprintln!(
+            "Terminal too small: {}x{} (minimum: {}x{})",
+            cols, rows, MIN_COLS, MIN_ROWS
+        );
+        process::exit(1);
+    }
 
     // Setup terminal
     enable_raw_mode()?;

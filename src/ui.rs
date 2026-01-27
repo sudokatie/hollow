@@ -1,8 +1,8 @@
 use ratatui::{
-    layout::{Alignment, Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    layout::{Alignment, Rect},
+    style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
 
@@ -24,6 +24,120 @@ pub struct RenderState<'a> {
     pub search_query: &'a str,
     pub search_matches: &'a [(usize, usize)],
     pub text_width: usize,
+    pub show_saved_indicator: bool,
+}
+
+const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
+
+/// Wrap a single line at word boundaries with indent for continuation
+fn wrap_line(line: &str, width: usize) -> Vec<String> {
+    if line.is_empty() {
+        return vec![String::new()];
+    }
+
+    let effective_width = width.saturating_sub(WRAP_INDENT.len());
+    if effective_width < 10 {
+        return vec![line.to_string()];
+    }
+
+    let mut result = Vec::new();
+    let mut current_line = String::new();
+    let mut is_first = true;
+
+    for word in line.split_inclusive(' ') {
+        let prefix = if is_first { "" } else { WRAP_INDENT };
+        let max_width = if is_first { width } else { effective_width };
+
+        if current_line.is_empty() {
+            current_line = format!("{}{}", prefix, word);
+        } else if current_line.len() + word.len() <= max_width {
+            current_line.push_str(word);
+        } else {
+            // Line is full, start a new one
+            result.push(current_line);
+            is_first = false;
+            current_line = format!("{}{}", WRAP_INDENT, word);
+        }
+    }
+
+    if !current_line.is_empty() {
+        result.push(current_line);
+    }
+
+    if result.is_empty() {
+        result.push(String::new());
+    }
+
+    result
+}
+
+/// Build visual lines from content with word wrapping
+/// Returns (visual_lines, line_map) where line_map[visual_idx] = (logical_line, is_continuation)
+fn build_visual_lines(content: &str, width: usize) -> (Vec<String>, Vec<(usize, bool)>) {
+    let mut visual_lines = Vec::new();
+    let mut line_map = Vec::new();
+
+    for (logical_idx, line) in content.lines().enumerate() {
+        let wrapped = wrap_line(line, width);
+        for (i, wrapped_line) in wrapped.into_iter().enumerate() {
+            visual_lines.push(wrapped_line);
+            line_map.push((logical_idx, i > 0));
+        }
+    }
+
+    // Handle empty content
+    if visual_lines.is_empty() {
+        visual_lines.push(String::new());
+        line_map.push((0, false));
+    }
+
+    (visual_lines, line_map)
+}
+
+/// Find visual line and column for a logical cursor position
+fn logical_to_visual(
+    content: &str,
+    logical_line: usize,
+    logical_col: usize,
+    width: usize,
+) -> (usize, usize) {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut visual_line = 0;
+
+    // Count visual lines before cursor's logical line
+    for (idx, line) in lines.iter().enumerate() {
+        if idx == logical_line {
+            break;
+        }
+        visual_line += wrap_line(line, width).len();
+    }
+
+    // Now find position within the wrapped lines of the cursor's logical line
+    if logical_line < lines.len() {
+        let cursor_line_text = lines[logical_line];
+        let wrapped = wrap_line(cursor_line_text, width);
+
+        let mut remaining_col = logical_col;
+        for (i, wrapped_line) in wrapped.iter().enumerate() {
+            let line_len = if i == 0 {
+                wrapped_line.len()
+            } else {
+                wrapped_line.len().saturating_sub(WRAP_INDENT.len())
+            };
+
+            if remaining_col <= line_len || i == wrapped.len() - 1 {
+                let visual_col = if i == 0 {
+                    remaining_col
+                } else {
+                    remaining_col + WRAP_INDENT.len()
+                };
+                return (visual_line + i, visual_col);
+            }
+            remaining_col -= line_len;
+        }
+    }
+
+    (visual_line, logical_col)
 }
 
 /// Main render function
@@ -48,8 +162,8 @@ pub fn render(frame: &mut Frame, state: &RenderState) {
         height: main_height,
     };
 
-    // Render main text content
-    render_content(frame, text_area, state);
+    // Render main text content with word wrapping
+    let (cursor_x, cursor_y) = render_content(frame, text_area, state);
 
     // Render status line if visible
     if state.show_status {
@@ -72,41 +186,102 @@ pub fn render(frame: &mut Frame, state: &RenderState) {
     }
 
     // Position cursor
-    let (cursor_x, cursor_y) = calculate_cursor_position(state, text_area);
     frame.set_cursor_position((cursor_x, cursor_y));
 }
 
-fn render_content(frame: &mut Frame, area: Rect, state: &RenderState) {
-    let lines: Vec<&str> = state.content.lines().collect();
+fn render_content(frame: &mut Frame, area: Rect, state: &RenderState) -> (u16, u16) {
+    let width = area.width as usize;
     let visible_lines = area.height as usize;
 
-    // Calculate scroll offset to keep cursor visible
-    let scroll = if state.cursor_line >= visible_lines {
-        state.cursor_line - visible_lines + 1
+    // Build visual lines with word wrapping
+    let (visual_lines, line_map) = build_visual_lines(state.content, width);
+
+    // Find cursor visual position
+    let (cursor_visual_line, cursor_visual_col) = logical_to_visual(
+        state.content,
+        state.cursor_line,
+        state.cursor_col,
+        width,
+    );
+
+    // Calculate scroll to keep cursor visible
+    let scroll = if cursor_visual_line >= visible_lines {
+        cursor_visual_line - visible_lines + 1
     } else {
         0
     };
 
-    // Build styled lines
-    let display_lines: Vec<Line> = lines
+    // Build styled lines with search highlighting
+    let display_lines: Vec<Line> = visual_lines
         .iter()
+        .enumerate()
         .skip(scroll)
         .take(visible_lines)
-        .enumerate()
         .map(|(idx, line)| {
-            let actual_line = scroll + idx;
-            let style = if actual_line == state.cursor_line {
-                Style::default()
+            let (logical_line, is_continuation) = line_map.get(idx).copied().unwrap_or((0, false));
+
+            // Highlight search matches
+            let styled_line = if !state.search_matches.is_empty() && !state.search_query.is_empty() {
+                highlight_matches(line, state.search_query, logical_line, is_continuation, state.content)
             } else {
-                Style::default().fg(Color::White)
+                Line::from(line.as_str())
             };
-            Line::styled(*line, style)
+
+            styled_line
         })
         .collect();
 
-    let paragraph = Paragraph::new(display_lines).wrap(Wrap { trim: false });
-
+    let paragraph = Paragraph::new(display_lines);
     frame.render_widget(paragraph, area);
+
+    // Calculate cursor screen position
+    let cursor_screen_y = (cursor_visual_line - scroll) as u16;
+    let cursor_screen_x = area.x + cursor_visual_col.min(width) as u16;
+
+    (cursor_screen_x, area.y + cursor_screen_y)
+}
+
+/// Highlight search matches in a line
+fn highlight_matches(
+    line: &str,
+    query: &str,
+    _logical_line: usize,
+    _is_continuation: bool,
+    _content: &str,
+) -> Line<'static> {
+    if query.is_empty() {
+        return Line::from(line.to_string());
+    }
+
+    let query_lower = query.to_lowercase();
+    let line_lower = line.to_lowercase();
+
+    let mut spans = Vec::new();
+    let mut last_end = 0;
+
+    for (start, _) in line_lower.match_indices(&query_lower) {
+        // Add text before match
+        if start > last_end {
+            spans.push(Span::raw(line[last_end..start].to_string()));
+        }
+        // Add highlighted match
+        spans.push(Span::styled(
+            line[start..start + query.len()].to_string(),
+            Style::default().bg(Color::Yellow).fg(Color::Black),
+        ));
+        last_end = start + query.len();
+    }
+
+    // Add remaining text
+    if last_end < line.len() {
+        spans.push(Span::raw(line[last_end..].to_string()));
+    }
+
+    if spans.is_empty() {
+        Line::from(line.to_string())
+    } else {
+        Line::from(spans)
+    }
 }
 
 fn render_status(frame: &mut Frame, area: Rect, state: &RenderState) {
@@ -117,10 +292,11 @@ fn render_status(frame: &mut Frame, area: Rect, state: &RenderState) {
     };
 
     let modified_str = if state.modified { " [+]" } else { "" };
+    let saved_str = if state.show_saved_indicator { "  Saved" } else { "" };
 
     let status = format!(
-        "Words: {}  |  {}  |  {}{}",
-        state.word_count, state.elapsed, mode_str, modified_str
+        "Words: {}  |  {}  |  {}{}{}",
+        state.word_count, state.elapsed, mode_str, modified_str, saved_str
     );
 
     let status_line = Paragraph::new(status)
@@ -155,7 +331,7 @@ fn render_help_overlay(frame: &mut Frame, area: Rect) {
     p               Paste
     u               Undo
     Ctrl+r          Redo
-    i               Return to writing
+    i or any char   Return to writing
 
   GENERAL
     Ctrl+S          Save
@@ -167,16 +343,11 @@ fn render_help_overlay(frame: &mut Frame, area: Rect) {
 "#;
 
     let width = 50.min(area.width - 4);
-    let height = 32.min(area.height - 2);
+    let height = 34.min(area.height - 2);
     let x = (area.width - width) / 2;
     let y = (area.height - height) / 2;
 
-    let overlay_area = Rect {
-        x,
-        y,
-        width,
-        height,
-    };
+    let overlay_area = Rect { x, y, width, height };
 
     frame.render_widget(Clear, overlay_area);
 
@@ -193,21 +364,12 @@ fn render_quit_confirm(frame: &mut Frame, area: Rect) {
     let x = (area.width - width) / 2;
     let y = (area.height - height) / 2;
 
-    let overlay_area = Rect {
-        x,
-        y,
-        width,
-        height,
-    };
+    let overlay_area = Rect { x, y, width, height };
 
     frame.render_widget(Clear, overlay_area);
 
     let confirm = Paragraph::new("\n  Save changes before quitting?\n\n  (y)es  (n)o  (c)ancel")
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Unsaved Changes "),
-        )
+        .block(Block::default().borders(Borders::ALL).title(" Unsaved Changes "))
         .style(Style::default().fg(Color::Yellow));
 
     frame.render_widget(confirm, overlay_area);
@@ -225,22 +387,4 @@ fn render_search_prompt(frame: &mut Frame, area: Rect, query: &str) {
     let search_line = Paragraph::new(prompt).style(Style::default().fg(Color::Cyan));
 
     frame.render_widget(search_line, search_area);
-}
-
-fn calculate_cursor_position(state: &RenderState, area: Rect) -> (u16, u16) {
-    let lines: Vec<&str> = state.content.lines().collect();
-    let visible_lines = area.height as usize;
-
-    let scroll = if state.cursor_line >= visible_lines {
-        state.cursor_line - visible_lines + 1
-    } else {
-        0
-    };
-
-    let visual_line = state.cursor_line.saturating_sub(scroll);
-    let visual_col = state
-        .cursor_col
-        .min(lines.get(state.cursor_line).map(|l| l.len()).unwrap_or(0));
-
-    (area.x + visual_col as u16, area.y + visual_line as u16)
 }
