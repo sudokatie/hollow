@@ -1,5 +1,6 @@
 mod config;
 mod editor;
+mod input;
 mod search;
 mod session;
 
