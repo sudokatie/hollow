@@ -496,7 +496,9 @@ impl Editor {
         let line_start_byte = self.rope.line_to_byte(self.cursor_line);
         let cursor_byte = line_start_byte + self.cursor_col;
         let line_start_char = self.rope.byte_to_char(line_start_byte);
-        let cursor_char = self.rope.byte_to_char(cursor_byte.min(self.rope.len_bytes()));
+        let cursor_char = self
+            .rope
+            .byte_to_char(cursor_byte.min(self.rope.len_bytes()));
         cursor_char - line_start_char
     }
 

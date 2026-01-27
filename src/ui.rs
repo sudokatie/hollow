@@ -104,8 +104,7 @@ fn render_content(frame: &mut Frame, area: Rect, state: &RenderState) {
         })
         .collect();
 
-    let paragraph = Paragraph::new(display_lines)
-        .wrap(Wrap { trim: false });
+    let paragraph = Paragraph::new(display_lines).wrap(Wrap { trim: false });
 
     frame.render_widget(paragraph, area);
 }
@@ -204,7 +203,11 @@ fn render_quit_confirm(frame: &mut Frame, area: Rect) {
     frame.render_widget(Clear, overlay_area);
 
     let confirm = Paragraph::new("\n  Save changes before quitting?\n\n  (y)es  (n)o  (c)ancel")
-        .block(Block::default().borders(Borders::ALL).title(" Unsaved Changes "))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Unsaved Changes "),
+        )
         .style(Style::default().fg(Color::Yellow));
 
     frame.render_widget(confirm, overlay_area);
@@ -219,8 +222,7 @@ fn render_search_prompt(frame: &mut Frame, area: Rect, query: &str) {
     };
 
     let prompt = format!("/{}", query);
-    let search_line = Paragraph::new(prompt)
-        .style(Style::default().fg(Color::Cyan));
+    let search_line = Paragraph::new(prompt).style(Style::default().fg(Color::Cyan));
 
     frame.render_widget(search_line, search_area);
 }
@@ -236,12 +238,9 @@ fn calculate_cursor_position(state: &RenderState, area: Rect) -> (u16, u16) {
     };
 
     let visual_line = state.cursor_line.saturating_sub(scroll);
-    let visual_col = state.cursor_col.min(
-        lines.get(state.cursor_line).map(|l| l.len()).unwrap_or(0)
-    );
+    let visual_col = state
+        .cursor_col
+        .min(lines.get(state.cursor_line).map(|l| l.len()).unwrap_or(0));
 
-    (
-        area.x + visual_col as u16,
-        area.y + visual_line as u16,
-    )
+    (area.x + visual_col as u16, area.y + visual_line as u16)
 }

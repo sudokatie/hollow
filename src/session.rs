@@ -24,7 +24,8 @@ impl Session {
 
     /// Get number of words written this session (never negative)
     pub fn words_written(&self) -> usize {
-        self.current_word_count.saturating_sub(self.initial_word_count)
+        self.current_word_count
+            .saturating_sub(self.initial_word_count)
     }
 
     /// Get elapsed time since session start

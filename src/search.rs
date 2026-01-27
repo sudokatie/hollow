@@ -154,7 +154,7 @@ mod tests {
         let mut search = Search::new();
         search.set_query("world");
         let rope = make_rope("hello world");
-        
+
         let result = search.find_next(&rope, 0);
         assert_eq!(result, Some((6, 11)));
     }
@@ -164,7 +164,7 @@ mod tests {
         let mut search = Search::new();
         search.set_query("HELLO");
         let rope = make_rope("hello world");
-        
+
         let result = search.find_next(&rope, 0);
         assert_eq!(result, Some((0, 5)));
     }
@@ -174,7 +174,7 @@ mod tests {
         let mut search = Search::new();
         search.set_query("xyz");
         let rope = make_rope("hello world");
-        
+
         let result = search.find_next(&rope, 0);
         assert_eq!(result, None);
     }
@@ -184,7 +184,7 @@ mod tests {
         let mut search = Search::new();
         search.set_query("hello");
         let rope = make_rope("hello world hello");
-        
+
         // Start after both hellos, should wrap to first
         let result = search.find_next(&rope, 15);
         assert_eq!(result, Some((0, 5)));
@@ -195,7 +195,7 @@ mod tests {
         let mut search = Search::new();
         search.set_query("hello");
         let rope = make_rope("hello world hello");
-        
+
         // From end, find previous (second hello)
         let result = search.find_prev(&rope, 17);
         assert_eq!(result, Some((12, 17)));
@@ -206,7 +206,7 @@ mod tests {
         let mut search = Search::new();
         search.set_query("world");
         let rope = make_rope("hello world");
-        
+
         // From start, wrap to find world
         let result = search.find_prev(&rope, 0);
         assert_eq!(result, Some((6, 11)));
@@ -217,7 +217,7 @@ mod tests {
         let mut search = Search::new();
         search.set_query("o");
         let rope = make_rope("hello world");
-        
+
         let matches = search.all_matches(&rope);
         // "hello world" has 'o' at positions 4, 7
         assert_eq!(matches.len(), 2);
@@ -228,7 +228,7 @@ mod tests {
     fn test_empty_query_returns_none() {
         let search = Search::new();
         let rope = make_rope("hello world");
-        
+
         assert_eq!(search.find_next(&rope, 0), None);
         assert_eq!(search.find_prev(&rope, 10), None);
         assert!(search.all_matches(&rope).is_empty());

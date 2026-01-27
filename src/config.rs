@@ -228,13 +228,11 @@ text_width = 70
 
     #[test]
     fn test_cli_overrides() {
-        let config = Config::default()
-            .with_overrides(Some(60), false);
+        let config = Config::default().with_overrides(Some(60), false);
         assert_eq!(config.editor.text_width, 60);
         assert_eq!(config.editor.auto_save_seconds, 30);
 
-        let config = Config::default()
-            .with_overrides(None, true);
+        let config = Config::default().with_overrides(None, true);
         assert_eq!(config.editor.text_width, 80);
         assert_eq!(config.editor.auto_save_seconds, 0);
     }

@@ -261,14 +261,23 @@ mod tests {
     #[test]
     fn test_ctrl_s_saves() {
         let mut state = InputState::default();
-        assert_eq!(handle_key(key_ctrl('s'), Mode::Write, &mut state), Action::Save);
-        assert_eq!(handle_key(key_ctrl('s'), Mode::Navigate, &mut state), Action::Save);
+        assert_eq!(
+            handle_key(key_ctrl('s'), Mode::Write, &mut state),
+            Action::Save
+        );
+        assert_eq!(
+            handle_key(key_ctrl('s'), Mode::Navigate, &mut state),
+            Action::Save
+        );
     }
 
     #[test]
     fn test_ctrl_q_quits() {
         let mut state = InputState::default();
-        assert_eq!(handle_key(key_ctrl('q'), Mode::Write, &mut state), Action::Quit);
+        assert_eq!(
+            handle_key(key_ctrl('q'), Mode::Write, &mut state),
+            Action::Quit
+        );
     }
 
     #[test]
@@ -335,11 +344,14 @@ mod tests {
     #[test]
     fn test_gg_moves_to_start() {
         let mut state = InputState::default();
-        
+
         // First g sets pending
-        assert_eq!(handle_key(key_char('g'), Mode::Navigate, &mut state), Action::None);
+        assert_eq!(
+            handle_key(key_char('g'), Mode::Navigate, &mut state),
+            Action::None
+        );
         assert!(state.pending_g);
-        
+
         // Second g completes the sequence
         assert_eq!(
             handle_key(key_char('g'), Mode::Navigate, &mut state),
@@ -350,10 +362,13 @@ mod tests {
     #[test]
     fn test_dd_deletes_line() {
         let mut state = InputState::default();
-        
-        assert_eq!(handle_key(key_char('d'), Mode::Navigate, &mut state), Action::None);
+
+        assert_eq!(
+            handle_key(key_char('d'), Mode::Navigate, &mut state),
+            Action::None
+        );
         assert!(state.pending_d);
-        
+
         assert_eq!(
             handle_key(key_char('d'), Mode::Navigate, &mut state),
             Action::DeleteLine
@@ -363,10 +378,13 @@ mod tests {
     #[test]
     fn test_yy_copies_line() {
         let mut state = InputState::default();
-        
-        assert_eq!(handle_key(key_char('y'), Mode::Navigate, &mut state), Action::None);
+
+        assert_eq!(
+            handle_key(key_char('y'), Mode::Navigate, &mut state),
+            Action::None
+        );
         assert!(state.pending_y);
-        
+
         assert_eq!(
             handle_key(key_char('y'), Mode::Navigate, &mut state),
             Action::CopyLine
@@ -376,25 +394,25 @@ mod tests {
     #[test]
     fn test_search_mode() {
         let mut state = InputState::default();
-        
+
         // / starts search
         assert_eq!(
             handle_key(key_char('/'), Mode::Navigate, &mut state),
             Action::StartSearch
         );
-        
+
         // In search mode, chars are search input
         assert_eq!(
             handle_key(key_char('a'), Mode::Search, &mut state),
             Action::SearchInput('a')
         );
-        
+
         // Enter submits
         assert_eq!(
             handle_key(key(KeyCode::Enter), Mode::Search, &mut state),
             Action::SubmitSearch
         );
-        
+
         // Escape cancels
         assert_eq!(
             handle_key(key(KeyCode::Esc), Mode::Search, &mut state),
@@ -405,15 +423,25 @@ mod tests {
     #[test]
     fn test_ctrl_z_undoes() {
         let mut state = InputState::default();
-        assert_eq!(handle_key(key_ctrl('z'), Mode::Write, &mut state), Action::Undo);
-        assert_eq!(handle_key(key_ctrl('z'), Mode::Navigate, &mut state), Action::Undo);
+        assert_eq!(
+            handle_key(key_ctrl('z'), Mode::Write, &mut state),
+            Action::Undo
+        );
+        assert_eq!(
+            handle_key(key_ctrl('z'), Mode::Navigate, &mut state),
+            Action::Undo
+        );
     }
 
     #[test]
     fn test_help_in_navigate() {
         let mut state = InputState::default();
         assert_eq!(
-            handle_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::SHIFT), Mode::Navigate, &mut state),
+            handle_key(
+                KeyEvent::new(KeyCode::Char('?'), KeyModifiers::SHIFT),
+                Mode::Navigate,
+                &mut state
+            ),
             Action::ShowHelp
         );
     }

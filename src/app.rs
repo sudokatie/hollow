@@ -196,10 +196,8 @@ impl App {
                 // Find first match
                 let (_, cursor_col) = self.editor.cursor_position();
                 if let Some((start, _)) = self.search.find_next(self.editor.content(), cursor_col) {
-                    self.editor.move_cursor(
-                        crate::editor::Direction::Up,
-                        crate::editor::Unit::Document,
-                    );
+                    self.editor
+                        .move_cursor(crate::editor::Direction::Up, crate::editor::Unit::Document);
                     // TODO: Move to match position
                 }
             }
