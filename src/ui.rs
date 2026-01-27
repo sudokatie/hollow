@@ -285,18 +285,13 @@ fn highlight_matches(
 }
 
 fn render_status(frame: &mut Frame, area: Rect, state: &RenderState) {
-    let mode_str = match state.mode {
-        Mode::Write => "WRITE",
-        Mode::Navigate => "NAV",
-        Mode::Search => "SEARCH",
-    };
-
-    let modified_str = if state.modified { " [+]" } else { "" };
+    // Format per spec 2.4: "Words: NNN  |  Session: XXm  |  [Modified]"
+    let modified_str = if state.modified { "  |  [Modified]" } else { "" };
     let saved_str = if state.show_saved_indicator { "  Saved" } else { "" };
 
     let status = format!(
-        "Words: {}  |  {}  |  {}{}{}",
-        state.word_count, state.elapsed, mode_str, modified_str, saved_str
+        "Words: {}  |  Session: {}{}{}",
+        state.word_count, state.elapsed, modified_str, saved_str
     );
 
     let status_line = Paragraph::new(status)
@@ -320,6 +315,7 @@ fn render_help_overlay(frame: &mut Frame, area: Rect) {
   NAVIGATE MODE (Escape to enter)
     h/j/k/l         Move left/down/up/right
     w/b             Move by word
+    {/}             Move by paragraph
     0/$             Line start/end
     gg/G            Document start/end
     /               Search

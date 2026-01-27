@@ -19,6 +19,7 @@ pub enum Unit {
     Char,
     Word,
     Line,
+    Paragraph,
     Page(usize), // page height in lines
     Document,
 }
@@ -374,6 +375,8 @@ impl Editor {
             (Direction::Right, Unit::Word) => self.move_word_forward(),
             (Direction::Left, Unit::Line) => self.move_line_start(),
             (Direction::Right, Unit::Line) => self.move_line_end(),
+            (Direction::Up, Unit::Paragraph) => self.move_paragraph_up(),
+            (Direction::Down, Unit::Paragraph) => self.move_paragraph_down(),
             (Direction::Up, Unit::Document) => self.move_document_start(),
             (Direction::Down, Unit::Document) => self.move_document_end(),
             (Direction::Up, Unit::Page(height)) => self.move_page_up(height),
@@ -514,6 +517,54 @@ impl Editor {
     fn move_line_end(&mut self) {
         self.cursor_col = self.line_len(self.cursor_line);
         self.sticky_col = None;
+    }
+
+    /// Move to previous paragraph (blank line or start of document)
+    fn move_paragraph_up(&mut self) {
+        // Skip current line if not blank
+        if self.cursor_line > 0 && !self.is_blank_line(self.cursor_line) {
+            self.cursor_line -= 1;
+        }
+
+        // Skip blank lines
+        while self.cursor_line > 0 && self.is_blank_line(self.cursor_line) {
+            self.cursor_line -= 1;
+        }
+
+        // Find start of paragraph (first blank line or start)
+        while self.cursor_line > 0 && !self.is_blank_line(self.cursor_line - 1) {
+            self.cursor_line -= 1;
+        }
+
+        self.cursor_col = 0;
+        self.sticky_col = None;
+    }
+
+    /// Move to next paragraph (blank line or end of document)
+    fn move_paragraph_down(&mut self) {
+        let max_line = self.rope.len_lines().saturating_sub(1);
+
+        // Skip current paragraph content
+        while self.cursor_line < max_line && !self.is_blank_line(self.cursor_line) {
+            self.cursor_line += 1;
+        }
+
+        // Skip blank lines
+        while self.cursor_line < max_line && self.is_blank_line(self.cursor_line) {
+            self.cursor_line += 1;
+        }
+
+        self.cursor_col = 0;
+        self.sticky_col = None;
+    }
+
+    /// Check if a line is blank (empty or whitespace only)
+    fn is_blank_line(&self, line: usize) -> bool {
+        if line >= self.rope.len_lines() {
+            return true;
+        }
+        let line_text = self.rope.line(line);
+        line_text.chars().all(|c| c.is_whitespace())
     }
 
     fn move_document_start(&mut self) {
@@ -833,5 +884,34 @@ mod tests {
         editor.paste();
 
         assert!(editor.content().to_string().contains("Hello"));
+    }
+
+    #[test]
+    fn test_paragraph_movement() {
+        let mut editor = Editor::new();
+        // Create content with paragraphs separated by blank lines
+        for c in "Line one.\n\nLine two.\n\nLine three.".chars() {
+            editor.insert_char(c);
+        }
+        // Content: "Line one.\n\nLine two.\n\nLine three."
+        // Line 0: "Line one."
+        // Line 1: "" (blank)
+        // Line 2: "Line two."
+        // Line 3: "" (blank)
+        // Line 4: "Line three."
+
+        // Move to start
+        editor.move_cursor(Direction::Up, Unit::Document);
+        assert_eq!(editor.cursor_position().0, 0);
+
+        // Move down by paragraph - should skip line 0, skip blank line 1, land on line 2
+        editor.move_cursor(Direction::Down, Unit::Paragraph);
+        // Should land on first non-blank line after blank
+        assert!(editor.cursor_position().0 >= 2);
+
+        // Move up by paragraph - should go back
+        let before = editor.cursor_position().0;
+        editor.move_cursor(Direction::Up, Unit::Paragraph);
+        assert!(editor.cursor_position().0 < before);
     }
 }

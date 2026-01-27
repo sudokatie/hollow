@@ -26,6 +26,8 @@ pub struct DisplayConfig {
     pub show_status: bool,
     #[serde(default = "default_status_timeout")]
     pub status_timeout: u64,
+    #[serde(default = "default_line_spacing")]
+    pub line_spacing: usize,
 }
 
 fn default_text_width() -> usize {
@@ -44,6 +46,10 @@ fn default_status_timeout() -> u64 {
     3
 }
 
+fn default_line_spacing() -> usize {
+    1
+}
+
 impl Default for EditorConfig {
     fn default() -> Self {
         Self {
@@ -59,6 +65,7 @@ impl Default for DisplayConfig {
         Self {
             show_status: false,
             status_timeout: default_status_timeout(),
+            line_spacing: default_line_spacing(),
         }
     }
 }
@@ -108,6 +115,9 @@ impl Config {
 
         // status_timeout: 0-60
         config.display.status_timeout = config.display.status_timeout.clamp(0, 60);
+
+        // line_spacing: 1-3
+        config.display.line_spacing = config.display.line_spacing.clamp(1, 3);
 
         config
     }

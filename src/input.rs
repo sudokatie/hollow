@@ -181,6 +181,10 @@ fn handle_navigate_mode(key: KeyEvent, state: &mut InputState) -> Action {
         KeyCode::Char('w') => Action::MoveCursor(Direction::Right, Unit::Word),
         KeyCode::Char('b') => Action::MoveCursor(Direction::Left, Unit::Word),
 
+        // Paragraph movement (spec 4.1)
+        KeyCode::Char('{') => Action::MoveCursor(Direction::Up, Unit::Paragraph),
+        KeyCode::Char('}') => Action::MoveCursor(Direction::Down, Unit::Paragraph),
+
         // Line movement
         KeyCode::Char('0') => Action::MoveCursor(Direction::Left, Unit::Line),
         KeyCode::Char('$') => Action::MoveCursor(Direction::Right, Unit::Line),

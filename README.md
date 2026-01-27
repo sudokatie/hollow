@@ -93,6 +93,7 @@ Press `Escape` from Write mode to enter Navigate mode.
 | i | Return to Write mode |
 | h/j/k/l | Move left/down/up/right |
 | w/b | Move forward/backward by word |
+| {/} | Move by paragraph |
 | 0/$ | Line start/end |
 | gg | Document start |
 | G | Document end |
@@ -128,6 +129,7 @@ auto_save_seconds = 30    # Auto-save interval (0 to disable)
 [display]
 show_status = false       # Show status line by default
 status_timeout = 3        # Seconds before status auto-hides (0 = never)
+line_spacing = 1          # Lines between paragraphs (1 = normal)
 ```
 
 All settings have sensible defaults - configuration is entirely optional.
@@ -151,14 +153,15 @@ Hollow is built on a few core beliefs:
 - [x] Modal navigation
 - [x] Auto-save
 - [x] Word count
-- [x] Search
+- [x] Search with highlighting
+- [x] Paragraph navigation
 - [x] Configuration
+- [x] Backup on first edit
 
 ### v0.2 (Planned)
-- [ ] Search highlighting
-- [ ] Improved word wrapping
 - [ ] Daily goals and streaks
 - [ ] Version history
+- [ ] Writing statistics
 
 ### Future
 - [ ] Multiple documents (projects)
