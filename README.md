@@ -4,24 +4,24 @@ Distraction-free terminal writing environment. Just you and the words.
 
 ## Why Hollow?
 
-Writing is hard. Distraction makes it impossible.
+Writing is hard. Your writing app shouldn't make it harder.
 
-Modern writing tools fight against focus with formatting options, cloud sync indicators, collaboration features, and notifications. Every feature adds friction between thought and page.
+Modern writing tools are at war with focus. Formatting toolbars. Cloud sync spinners. Collaboration features for documents nobody else will ever read. "Smart" suggestions that interrupt your train of thought to tell you "very" is a weak word. (It is, but I'll fix it in editing, thank you.)
 
-The terminal is the last sanctuary of focus. No notifications. No mouse temptation. No visual clutter. Just text and a blinking cursor.
+The terminal is the last sanctuary of focus. No notifications. No mouse temptation. No visual clutter. Just text and a blinking cursor, the way writers wrote before product managers discovered word processors.
 
-Hollow is a writing environment that embraces the terminal's focus while understanding that writing isn't just editing text - it's thinking made visible.
+Hollow embraces this. It's a writing environment for people who want to write, not people who want to configure their writing environment.
 
 ## Features
 
-- Full-screen, minimal interface - no chrome, no distractions
-- Modal editing (Write and Navigate modes)
-- Auto-save every 30 seconds
-- Word count and session time tracking
-- Search with case-insensitive matching
-- Undo/redo
+- Full-screen, minimal interface - no chrome, no distractions, no "ribbon"
+- Modal editing (Write and Navigate modes, vim-style)
+- Auto-save every 30 seconds (because losing work is trauma)
+- Word count and session time tracking (accountability without judgment)
+- Search with highlighting
+- Undo/redo (mistakes happen)
 - Configurable text width with centered layout
-- Vim-style navigation in Navigate mode
+- Backup on first edit (paranoia is a feature)
 
 ## Installation
 
@@ -45,7 +45,7 @@ cargo install hollow
 hollow <file>
 ```
 
-Opens the file for editing. Creates it if it doesn't exist.
+That's it. Opens the file for editing. Creates it if it doesn't exist. No project setup. No configuration wizard. Just writing.
 
 ### Options
 
@@ -53,7 +53,7 @@ Opens the file for editing. Creates it if it doesn't exist.
 --help, -h          Show help message
 --version, -v       Show version
 --width <N>         Set text width (default: 80)
---no-autosave       Disable auto-save
+--no-autosave       Disable auto-save (live dangerously)
 ```
 
 ## Key Bindings
@@ -70,7 +70,7 @@ Opens the file for editing. Creates it if it doesn't exist.
 
 ### Write Mode
 
-Type normally. All printable characters are inserted at the cursor.
+Type normally. All printable characters are inserted at the cursor. Like a typewriter, but with backspace.
 
 | Key | Action |
 |-----|--------|
@@ -86,7 +86,7 @@ Type normally. All printable characters are inserted at the cursor.
 
 ### Navigate Mode
 
-Press `Escape` from Write mode to enter Navigate mode.
+Press `Escape` from Write mode to enter Navigate mode. This is where the vim users feel at home.
 
 | Key | Action |
 |-----|--------|
@@ -104,7 +104,7 @@ Press `Escape` from Write mode to enter Navigate mode.
 | p | Paste |
 | u | Undo |
 | Ctrl+r | Redo |
-| ? | Show help |
+| ? | Show help (because nobody remembers all of these) |
 
 ### Search Mode
 
@@ -118,7 +118,7 @@ Press `/` in Navigate mode to start a search.
 
 ## Configuration
 
-Hollow looks for a config file at `~/.config/hollow/config.toml`.
+Hollow looks for `~/.config/hollow/config.toml`. Or it doesn't, because the defaults are fine.
 
 ```toml
 [editor]
@@ -128,23 +128,21 @@ auto_save_seconds = 30    # Auto-save interval (0 to disable)
 
 [display]
 show_status = false       # Show status line by default
-status_timeout = 3        # Seconds before status auto-hides (0 = never)
-line_spacing = 1          # Lines between paragraphs (1 = normal)
+status_timeout = 3        # Seconds before status auto-hides
+line_spacing = 1          # Lines between paragraphs
 ```
 
-All settings have sensible defaults - configuration is entirely optional.
+Configuration is entirely optional. The defaults work. I tested them.
 
 ## Philosophy
 
-Hollow is built on a few core beliefs:
+1. **Less is more.** Every feature earns its place by helping you write. If it doesn't help you write, it doesn't belong.
 
-1. **Less is more.** Every feature should earn its place by helping you write.
+2. **The terminal is a feature, not a limitation.** It provides focus that GUI apps struggle to match. This is intentional.
 
-2. **The terminal is a feature, not a limitation.** It provides focus that GUI apps struggle to match.
+3. **Your words belong to you.** Files are plain Markdown, stored locally. No cloud. No lock-in. No "what do you mean the service shut down?"
 
-3. **Your words belong to you.** Files are plain Markdown, stored locally. No cloud, no lock-in.
-
-4. **Writing is a practice.** Session tracking helps build consistent habits.
+4. **Writing is a practice.** Session tracking helps build consistent habits. The word count is there to encourage you, not judge you. (Okay, maybe judge you a little.)
 
 ## Roadmap
 
@@ -169,6 +167,8 @@ Hollow is built on a few core beliefs:
 - [ ] Spell checking integration
 - [ ] Custom themes
 
+See [ROADMAP.md](ROADMAP.md) for details.
+
 ## Building from Source
 
 Requirements:
@@ -176,27 +176,16 @@ Requirements:
 - Cargo
 
 ```bash
-# Clone the repository
 git clone https://github.com/katieblackabee/hollow.git
 cd hollow
-
-# Build release version
 cargo build --release
-
-# Run tests
-cargo test
-
-# Install locally
+cargo test           # 67 tests, because I have standards
 cargo install --path .
 ```
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests.
-
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT
 
 ## Author
 
