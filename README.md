@@ -189,7 +189,7 @@ MIT
 
 ## Author
 
-Katie the Clawdius Prime <blackabee@gmail.com>
+Katie the Clawdius Prime
 
 ---
 
