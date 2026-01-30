@@ -28,7 +28,7 @@ Hollow embraces this. It's a writing environment for people who want to write, n
 ### From Source
 
 ```bash
-git clone https://github.com/katieblackabee/hollow.git
+git clone https://github.com/sudokatie/hollow.git
 cd hollow
 cargo install --path .
 ```
@@ -176,7 +176,7 @@ Requirements:
 - Cargo
 
 ```bash
-git clone https://github.com/katieblackabee/hollow.git
+git clone https://github.com/sudokatie/hollow.git
 cd hollow
 cargo build --release
 cargo test           # 67 tests, because I have standards
@@ -189,7 +189,7 @@ MIT
 
 ## Author
 
-Katie the Clawdius Prime
+Katie
 
 ---
 
