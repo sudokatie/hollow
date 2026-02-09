@@ -8,6 +8,8 @@ use ratatui::{
 
 use crate::input::Mode;
 
+use crate::stats::WritingStats;
+
 /// Render state passed to UI
 pub struct RenderState<'a> {
     pub content: &'a str,
@@ -20,6 +22,7 @@ pub struct RenderState<'a> {
     pub show_status: bool,
     pub show_help: bool,
     pub show_quit_confirm: bool,
+    pub show_stats: bool,
     pub search_active: bool,
     pub search_query: &'a str,
     pub search_matches: &'a [(usize, usize)],
@@ -31,6 +34,8 @@ pub struct RenderState<'a> {
     pub streak: usize,
     pub goal_met: bool,
     pub show_goal: bool,
+    // Statistics
+    pub writing_stats: Option<&'a WritingStats>,
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -187,6 +192,8 @@ pub fn render(frame: &mut Frame, state: &RenderState) {
         render_help_overlay(frame, area);
     } else if state.show_quit_confirm {
         render_quit_confirm(frame, area);
+    } else if state.show_stats {
+        render_stats_overlay(frame, area, state.writing_stats);
     } else if state.search_active {
         render_search_prompt(frame, area, state.search_query);
     }
@@ -406,6 +413,89 @@ fn render_quit_confirm(frame: &mut Frame, area: Rect) {
         .style(Style::default().fg(Color::Yellow));
 
     frame.render_widget(confirm, overlay_area);
+}
+
+fn render_stats_overlay(frame: &mut Frame, area: Rect, stats: Option<&WritingStats>) {
+    let width = 50.min(area.width - 4);
+    let height = 20.min(area.height - 2);
+    let x = (area.width - width) / 2;
+    let y = (area.height - height) / 2;
+
+    let overlay_area = Rect { x, y, width, height };
+    frame.render_widget(Clear, overlay_area);
+
+    let stats_text = if let Some(s) = stats {
+        let productive_hour = s.most_productive_hour
+            .map(|h| format!("{}:00", h))
+            .unwrap_or_else(|| "N/A".to_string());
+        
+        // Build ASCII chart for last 7 days
+        let max_words = s.words_last_7_days.iter().map(|(_, w)| *w).max().unwrap_or(1).max(1);
+        let chart_height = 5;
+        let mut chart_lines = vec![String::new(); chart_height];
+        
+        for (_, words) in &s.words_last_7_days {
+            let bar_height = ((*words as f64 / max_words as f64) * chart_height as f64) as usize;
+            for row in 0..chart_height {
+                let ch = if chart_height - row <= bar_height { '#' } else { ' ' };
+                chart_lines[row].push(ch);
+                chart_lines[row].push(' ');
+            }
+        }
+        
+        let date_labels: String = s.words_last_7_days.iter()
+            .map(|(d, _)| format!("{} ", d))
+            .collect();
+
+        format!(
+            r#"
+  WRITING STATISTICS
+
+  Total Words:       {:>8}
+  Total Sessions:    {:>8}
+  Total Time:        {:>5} min
+  
+  Avg Words/Session: {:>8}
+  Avg Session Time:  {:>5} min
+  
+  Current Streak:    {:>5} days
+  Longest Streak:    {:>5} days
+  Most Productive:   {:>8}
+
+  Last 7 Days:
+  {}
+  {}
+  {}
+  {}
+  {}
+  {}
+
+  Press any key to close
+"#,
+            s.total_words,
+            s.total_sessions,
+            s.total_minutes,
+            s.avg_words_per_session,
+            s.avg_session_minutes,
+            s.current_streak,
+            s.longest_streak,
+            productive_hour,
+            chart_lines.get(0).unwrap_or(&String::new()),
+            chart_lines.get(1).unwrap_or(&String::new()),
+            chart_lines.get(2).unwrap_or(&String::new()),
+            chart_lines.get(3).unwrap_or(&String::new()),
+            chart_lines.get(4).unwrap_or(&String::new()),
+            date_labels,
+        )
+    } else {
+        "  No statistics available yet.\n\n  Start writing to track your progress!\n\n  Press any key to close".to_string()
+    };
+
+    let stats_para = Paragraph::new(stats_text)
+        .block(Block::default().borders(Borders::ALL).title(" Statistics "))
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(stats_para, overlay_area);
 }
 
 fn render_search_prompt(frame: &mut Frame, area: Rect, query: &str) {

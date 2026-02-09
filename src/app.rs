@@ -22,6 +22,7 @@ use crate::ui::{self, RenderState};
 pub enum Overlay {
     None,
     Help,
+    Stats,
     QuitConfirm,
 }
 
@@ -44,6 +45,7 @@ pub struct App {
     pub terminal_too_small: bool,
     pub stats: Option<StatsTracker>,
     pub streak: usize,
+    pub writing_stats: Option<crate::stats::WritingStats>,
 }
 
 impl App {
@@ -83,6 +85,7 @@ impl App {
             last_save: Instant::now(),
             saved_indicator: None,
             terminal_too_small: false,
+            writing_stats: None,
             stats,
             streak,
             config,
@@ -134,6 +137,7 @@ impl App {
                     show_status: self.show_status,
                     show_help: self.overlay == Overlay::Help,
                     show_quit_confirm: self.overlay == Overlay::QuitConfirm,
+                    show_stats: self.overlay == Overlay::Stats,
                     search_active: self.mode == Mode::Search,
                     search_query: &self.search_input,
                     search_matches: &matches,
@@ -144,6 +148,7 @@ impl App {
                     streak: self.streak,
                     goal_met,
                     show_goal: self.config.goals.show_progress || self.config.goals.show_streak,
+                    writing_stats: self.writing_stats.as_ref(),
                 };
 
                 ui::render(f, &state);
@@ -192,6 +197,12 @@ impl App {
 
         // Handle help overlay
         if self.overlay == Overlay::Help {
+            self.overlay = Overlay::None;
+            return;
+        }
+        
+        // Handle stats overlay
+        if self.overlay == Overlay::Stats {
             self.overlay = Overlay::None;
             return;
         }
@@ -265,6 +276,13 @@ impl App {
                 }
             }
             Action::ShowHelp => self.overlay = Overlay::Help,
+            Action::ShowStats => {
+                // Refresh stats before showing
+                if let Some(ref stats) = self.stats {
+                    self.writing_stats = stats.get_writing_stats().ok();
+                }
+                self.overlay = Overlay::Stats;
+            }
             Action::HideOverlay => self.overlay = Overlay::None,
 
             // Search
