@@ -4,6 +4,7 @@ mod editor;
 mod input;
 mod search;
 mod session;
+mod stats;
 mod ui;
 
 use std::io::{self, stdout};

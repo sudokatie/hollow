@@ -25,6 +25,12 @@ pub struct RenderState<'a> {
     pub search_matches: &'a [(usize, usize)],
     pub text_width: usize,
     pub show_saved_indicator: bool,
+    // Goal tracking
+    pub daily_goal: usize,
+    pub goal_progress: f64,
+    pub streak: usize,
+    pub goal_met: bool,
+    pub show_goal: bool,
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -288,10 +294,33 @@ fn render_status(frame: &mut Frame, area: Rect, state: &RenderState) {
     // Format per spec 2.4: "Words: NNN  |  Session: XXm  |  [Modified]"
     let modified_str = if state.modified { "  |  [Modified]" } else { "" };
     let saved_str = if state.show_saved_indicator { "  Saved" } else { "" };
+    
+    // Goal progress string
+    let goal_str = if state.show_goal && state.daily_goal > 0 {
+        if state.goal_met {
+            // Celebration - subtle checkmark
+            format!("  |  Goal: {} [done]", format_progress_bar(state.goal_progress))
+        } else {
+            format!("  |  Goal: {} ({}/{})", 
+                format_progress_bar(state.goal_progress),
+                state.word_count.min(state.daily_goal),
+                state.daily_goal
+            )
+        }
+    } else {
+        String::new()
+    };
+    
+    // Streak string
+    let streak_str = if state.show_goal && state.streak > 0 {
+        format!("  |  Streak: {} day{}", state.streak, if state.streak == 1 { "" } else { "s" })
+    } else {
+        String::new()
+    };
 
     let status = format!(
-        "Words: {}  |  Session: {}{}{}",
-        state.word_count, state.elapsed, modified_str, saved_str
+        "Words: {}  |  Session: {}{}{}{}{}",
+        state.word_count, state.elapsed, goal_str, streak_str, modified_str, saved_str
     );
 
     let status_line = Paragraph::new(status)
@@ -299,6 +328,14 @@ fn render_status(frame: &mut Frame, area: Rect, state: &RenderState) {
         .alignment(Alignment::Center);
 
     frame.render_widget(status_line, area);
+}
+
+/// Format a progress bar like [====----] for goal progress
+fn format_progress_bar(progress: f64) -> String {
+    let total_chars = 8;
+    let filled = ((progress.min(1.0) * total_chars as f64) as usize).min(total_chars);
+    let empty = total_chars - filled;
+    format!("[{}{}]", "=".repeat(filled), "-".repeat(empty))
 }
 
 fn render_help_overlay(frame: &mut Frame, area: Rect) {

@@ -8,6 +8,8 @@ pub struct Config {
     pub editor: EditorConfig,
     #[serde(default)]
     pub display: DisplayConfig,
+    #[serde(default)]
+    pub goals: GoalsConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -28,6 +30,24 @@ pub struct DisplayConfig {
     pub status_timeout: u64,
     #[serde(default = "default_line_spacing")]
     pub line_spacing: usize,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GoalsConfig {
+    #[serde(default)]
+    pub daily_goal: usize,
+    #[serde(default = "default_show_progress")]
+    pub show_progress: bool,
+    #[serde(default = "default_show_streak")]
+    pub show_streak: bool,
+}
+
+fn default_show_progress() -> bool {
+    true
+}
+
+fn default_show_streak() -> bool {
+    true
 }
 
 fn default_text_width() -> usize {
@@ -66,6 +86,16 @@ impl Default for DisplayConfig {
             show_status: false,
             status_timeout: default_status_timeout(),
             line_spacing: default_line_spacing(),
+        }
+    }
+}
+
+impl Default for GoalsConfig {
+    fn default() -> Self {
+        Self {
+            daily_goal: 0, // 0 means disabled
+            show_progress: default_show_progress(),
+            show_streak: default_show_streak(),
         }
     }
 }

@@ -14,6 +14,7 @@ use crate::editor::Editor;
 use crate::input::{self, Action, InputState, Mode};
 use crate::search::Search;
 use crate::session::Session;
+use crate::stats::StatsTracker;
 use crate::ui::{self, RenderState};
 
 /// Overlay state
@@ -41,6 +42,8 @@ pub struct App {
     pub last_save: Instant,
     pub saved_indicator: Option<Instant>, // Shows "Saved" briefly per spec 5.3
     pub terminal_too_small: bool,
+    pub stats: Option<StatsTracker>,
+    pub streak: usize,
 }
 
 impl App {
@@ -51,6 +54,19 @@ impl App {
 
         let initial_word_count = editor.word_count();
         let session = Session::new(initial_word_count);
+        
+        // Initialize stats tracker if daily goal is set
+        let (stats, streak) = if config.goals.daily_goal > 0 {
+            match StatsTracker::new(config.goals.daily_goal) {
+                Ok(tracker) => {
+                    let streak = tracker.get_streak().unwrap_or(0);
+                    (Some(tracker), streak)
+                }
+                Err(_) => (None, 0),
+            }
+        } else {
+            (None, 0)
+        };
 
         Ok(Self {
             editor,
@@ -67,6 +83,8 @@ impl App {
             last_save: Instant::now(),
             saved_indicator: None,
             terminal_too_small: false,
+            stats,
+            streak,
             config,
         })
     }
@@ -98,12 +116,19 @@ impl App {
                 let (cursor_line, cursor_col) = self.editor.cursor_position();
                 let matches = self.search.all_matches(self.editor.content());
 
+                let word_count = self.editor.word_count();
+                let (goal_progress, goal_met) = if let Some(ref stats) = self.stats {
+                    (stats.get_progress(word_count), stats.is_goal_met(word_count))
+                } else {
+                    (0.0, false)
+                };
+                
                 let state = RenderState {
                     content: &content,
                     cursor_line,
                     cursor_col,
                     mode: self.mode,
-                    word_count: self.editor.word_count(),
+                    word_count,
                     elapsed: &self.session.elapsed_formatted(),
                     modified: self.editor.is_modified(),
                     show_status: self.show_status,
@@ -114,6 +139,11 @@ impl App {
                     search_matches: &matches,
                     text_width: self.config.editor.text_width,
                     show_saved_indicator: self.saved_indicator.is_some(),
+                    daily_goal: self.config.goals.daily_goal,
+                    goal_progress,
+                    streak: self.streak,
+                    goal_met,
+                    show_goal: self.config.goals.show_progress || self.config.goals.show_streak,
                 };
 
                 ui::render(f, &state);
@@ -179,6 +209,7 @@ impl App {
                 if self.editor.save(&self.file_path).is_ok() {
                     self.last_save = Instant::now();
                     self.saved_indicator = Some(Instant::now());
+                    self.record_stats();
                 }
             }
 
@@ -290,6 +321,9 @@ impl App {
             self.editor.save(&self.file_path)?;
             self.last_save = Instant::now();
             self.saved_indicator = Some(Instant::now()); // Show "Saved" indicator per spec 5.3
+            
+            // Record stats on save
+            self.record_stats();
         }
 
         // Clear saved indicator after 2 seconds
@@ -300,6 +334,19 @@ impl App {
         }
 
         Ok(())
+    }
+    
+    /// Record writing stats to database
+    fn record_stats(&mut self) {
+        if let Some(ref stats) = self.stats {
+            let word_count = self.editor.word_count();
+            let _ = stats.record_words(word_count);
+            
+            // Update streak if goal was just met
+            if stats.is_goal_met(word_count) {
+                self.streak = stats.get_streak().unwrap_or(self.streak);
+            }
+        }
     }
 
     fn check_status_timeout(&mut self) {
