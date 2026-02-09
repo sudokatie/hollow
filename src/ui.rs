@@ -436,10 +436,10 @@ fn render_stats_overlay(frame: &mut Frame, area: Rect, stats: Option<&WritingSta
         
         for (_, words) in &s.words_last_7_days {
             let bar_height = ((*words as f64 / max_words as f64) * chart_height as f64) as usize;
-            for row in 0..chart_height {
+            for (row, line) in chart_lines.iter_mut().enumerate() {
                 let ch = if chart_height - row <= bar_height { '#' } else { ' ' };
-                chart_lines[row].push(ch);
-                chart_lines[row].push(' ');
+                line.push(ch);
+                line.push(' ');
             }
         }
         
@@ -480,7 +480,7 @@ fn render_stats_overlay(frame: &mut Frame, area: Rect, stats: Option<&WritingSta
             s.current_streak,
             s.longest_streak,
             productive_hour,
-            chart_lines.get(0).unwrap_or(&String::new()),
+            chart_lines.first().unwrap_or(&String::new()),
             chart_lines.get(1).unwrap_or(&String::new()),
             chart_lines.get(2).unwrap_or(&String::new()),
             chart_lines.get(3).unwrap_or(&String::new()),

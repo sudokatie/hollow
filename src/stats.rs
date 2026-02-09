@@ -2,7 +2,7 @@
 //!
 //! Stores daily word counts and session data in SQLite database at ~/.config/hollow/stats.db
 
-use chrono::{Local, NaiveDate, NaiveDateTime, Timelike};
+use chrono::{Local, NaiveDate, NaiveDateTime};
 use rusqlite::{Connection, Result as SqlResult};
 use std::path::PathBuf;
 
