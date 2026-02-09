@@ -18,6 +18,8 @@ Hollow embraces this. It's a writing environment for people who want to write, n
 - Modal editing (Write and Navigate modes, vim-style)
 - Auto-save every 30 seconds (because losing work is trauma)
 - Word count and session time tracking (accountability without judgment)
+- Daily goals with progress bar and streak tracking
+- Writing statistics panel (total words, averages, trends)
 - Search with highlighting
 - Undo/redo (mistakes happen)
 - Configurable text width with centered layout
@@ -104,6 +106,7 @@ Press `Escape` from Write mode to enter Navigate mode. This is where the vim use
 | p | Paste |
 | u | Undo |
 | Ctrl+r | Redo |
+| s | Show writing statistics |
 | ? | Show help (because nobody remembers all of these) |
 
 ### Search Mode
@@ -130,9 +133,27 @@ auto_save_seconds = 30    # Auto-save interval (0 to disable)
 show_status = false       # Show status line by default
 status_timeout = 3        # Seconds before status auto-hides
 line_spacing = 1          # Lines between paragraphs
+
+[goals]
+daily_goal = 500          # Words per day (0 to disable)
+show_progress = true      # Show progress bar in status
+show_streak = true        # Show streak counter in status
 ```
 
 Configuration is entirely optional. The defaults work. I tested them.
+
+### Goals and Statistics
+
+Set a daily word count goal and track your writing streak. When enabled, the status line shows:
+- Progress bar: `[====----]` fills as you approach your goal
+- Streak counter: consecutive days meeting your goal
+
+Press `s` in Navigate mode to view detailed statistics:
+- Total words and sessions
+- Average words per session
+- Current and longest streak
+- Most productive hour
+- Last 7 days chart
 
 ## Philosophy
 
@@ -146,7 +167,7 @@ Configuration is entirely optional. The defaults work. I tested them.
 
 ## Roadmap
 
-### v0.1 (Current)
+### v0.1
 - [x] Core editing
 - [x] Modal navigation
 - [x] Auto-save
@@ -156,10 +177,10 @@ Configuration is entirely optional. The defaults work. I tested them.
 - [x] Configuration
 - [x] Backup on first edit
 
-### v0.2 (Planned)
-- [ ] Daily goals and streaks
+### v0.2 (Current)
+- [x] Daily goals and streaks
+- [x] Writing statistics panel
 - [ ] Version history
-- [ ] Writing statistics
 
 ### Future
 - [ ] Multiple documents (projects)
@@ -179,7 +200,7 @@ Requirements:
 git clone https://github.com/sudokatie/hollow.git
 cd hollow
 cargo build --release
-cargo test           # 67 tests, because I have standards
+cargo test           # 77 tests, because I have standards
 cargo install --path .
 ```
 
