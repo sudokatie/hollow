@@ -9,6 +9,7 @@ use ratatui::{
 use crate::input::Mode;
 
 use crate::stats::WritingStats;
+use crate::versions::Version;
 
 /// Render state passed to UI
 pub struct RenderState<'a> {
@@ -36,6 +37,13 @@ pub struct RenderState<'a> {
     pub show_goal: bool,
     // Statistics
     pub writing_stats: Option<&'a WritingStats>,
+    // Version history
+    pub show_versions: bool,
+    pub versions: &'a [Version],
+    pub version_index: usize,
+    pub version_view: Option<&'a str>,    // Content of version being viewed
+    pub version_diff: Option<&'a str>,    // Diff output
+    pub version_time: Option<&'a str>,    // Time of version being viewed
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -194,6 +202,12 @@ pub fn render(frame: &mut Frame, state: &RenderState) {
         render_quit_confirm(frame, area);
     } else if state.show_stats {
         render_stats_overlay(frame, area, state.writing_stats);
+    } else if state.show_versions {
+        render_versions_overlay(frame, area, state.versions, state.version_index);
+    } else if let Some(content) = state.version_view {
+        render_version_view(frame, area, content, state.version_time.unwrap_or(""));
+    } else if let Some(diff) = state.version_diff {
+        render_version_diff(frame, area, diff, state.version_time.unwrap_or(""));
     } else if state.search_active {
         render_search_prompt(frame, area, state.search_query);
     }
@@ -510,4 +524,150 @@ fn render_search_prompt(frame: &mut Frame, area: Rect, query: &str) {
     let search_line = Paragraph::new(prompt).style(Style::default().fg(Color::Cyan));
 
     frame.render_widget(search_line, search_area);
+}
+
+fn render_versions_overlay(frame: &mut Frame, area: Rect, versions: &[Version], selected: usize) {
+    let width = 60.min(area.width - 4);
+    let height = 20.min(area.height - 2);
+    let x = (area.width - width) / 2;
+    let y = (area.height - height) / 2;
+
+    let overlay_area = Rect { x, y, width, height };
+    frame.render_widget(Clear, overlay_area);
+
+    let content_height = height.saturating_sub(4) as usize; // Account for border and help text
+
+    if versions.is_empty() {
+        let text = "\n  No versions saved yet.\n\n  Versions are created when you save.\n\n  Press Escape to close";
+        let para = Paragraph::new(text)
+            .block(Block::default().borders(Borders::ALL).title(" Version History "))
+            .style(Style::default().fg(Color::White));
+        frame.render_widget(para, overlay_area);
+        return;
+    }
+
+    // Build version list with selection highlight
+    let mut lines: Vec<Line> = Vec::new();
+    lines.push(Line::from(""));
+
+    // Calculate scroll offset to keep selection visible
+    let scroll = if selected >= content_height.saturating_sub(2) {
+        selected.saturating_sub(content_height.saturating_sub(3))
+    } else {
+        0
+    };
+
+    for (i, version) in versions.iter().enumerate().skip(scroll).take(content_height.saturating_sub(3)) {
+        let prefix = if i == selected { "> " } else { "  " };
+        let line_text = format!(
+            "{}{}  {:>5} words  {}",
+            prefix,
+            version.formatted_time(),
+            version.word_count,
+            version.preview()
+        );
+
+        let style = if i == selected {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::White)
+        };
+
+        lines.push(Line::from(Span::styled(line_text, style)));
+    }
+
+    // Add help text at bottom
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "  j/k: navigate  Enter: view  d: diff  r: restore  q: close",
+        Style::default().fg(Color::DarkGray),
+    )));
+
+    let para = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title(" Version History "))
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(para, overlay_area);
+}
+
+fn render_version_view(frame: &mut Frame, area: Rect, content: &str, time: &str) {
+    let width = (area.width - 4).min(100);
+    let height = area.height - 4;
+    let x = (area.width - width) / 2;
+    let y = 2;
+
+    let overlay_area = Rect { x, y, width, height };
+    frame.render_widget(Clear, overlay_area);
+
+    let title = format!(" Version: {} (read-only) ", time);
+    
+    // Truncate content to visible area
+    let visible_lines = height.saturating_sub(3) as usize;
+    let display_content: String = content
+        .lines()
+        .take(visible_lines)
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let para = Paragraph::new(display_content)
+        .block(Block::default().borders(Borders::ALL).title(title))
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(para, overlay_area);
+
+    // Show help at bottom
+    let help_area = Rect {
+        x: 0,
+        y: area.height - 1,
+        width: area.width,
+        height: 1,
+    };
+    let help = Paragraph::new("  r: restore this version  q/Escape: back to list")
+        .style(Style::default().fg(Color::DarkGray));
+    frame.render_widget(help, help_area);
+}
+
+fn render_version_diff(frame: &mut Frame, area: Rect, diff: &str, time: &str) {
+    let width = (area.width - 4).min(100);
+    let height = area.height - 4;
+    let x = (area.width - width) / 2;
+    let y = 2;
+
+    let overlay_area = Rect { x, y, width, height };
+    frame.render_widget(Clear, overlay_area);
+
+    let title = format!(" Diff: {} vs current ", time);
+
+    // Style diff output with colors
+    let visible_lines = height.saturating_sub(3) as usize;
+    let lines: Vec<Line> = diff
+        .lines()
+        .take(visible_lines)
+        .map(|line| {
+            if line.starts_with('+') {
+                Line::from(Span::styled(line.to_string(), Style::default().fg(Color::Green)))
+            } else if line.starts_with('-') {
+                Line::from(Span::styled(line.to_string(), Style::default().fg(Color::Red)))
+            } else {
+                Line::from(line.to_string())
+            }
+        })
+        .collect();
+
+    let para = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title(title))
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(para, overlay_area);
+
+    // Show help at bottom
+    let help_area = Rect {
+        x: 0,
+        y: area.height - 1,
+        width: area.width,
+        height: 1,
+    };
+    let help = Paragraph::new("  Press any key to return")
+        .style(Style::default().fg(Color::DarkGray));
+    frame.render_widget(help, help_area);
 }

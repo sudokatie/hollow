@@ -136,6 +136,17 @@ impl Editor {
         Ok(())
     }
 
+    /// Set the editor content (used for restoring versions)
+    pub fn set_content(&mut self, content: &str) {
+        let normalized = content.replace("\r\n", "\n").replace("\r", "\n");
+        self.rope = Rope::from_str(&normalized);
+        self.cursor_line = 0;
+        self.cursor_col = 0;
+        self.modified = true;
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+    }
+
     /// Insert a character at the cursor position
     pub fn insert_char(&mut self, c: char) {
         let byte_pos = self.cursor_byte_offset();

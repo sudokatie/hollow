@@ -16,13 +16,17 @@ use crate::search::Search;
 use crate::session::Session;
 use crate::stats::StatsTracker;
 use crate::ui::{self, RenderState};
+use crate::versions::{Version, VersionStore};
 
 /// Overlay state
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Overlay {
     None,
     Help,
     Stats,
+    Versions,
+    VersionView(i64),  // Viewing specific version by ID
+    VersionDiff(i64),  // Showing diff for version ID
     QuitConfirm,
 }
 
@@ -46,6 +50,9 @@ pub struct App {
     pub stats: Option<StatsTracker>,
     pub streak: usize,
     pub writing_stats: Option<crate::stats::WritingStats>,
+    pub version_store: Option<VersionStore>,
+    pub versions: Vec<Version>,
+    pub version_index: usize,
 }
 
 impl App {
@@ -70,6 +77,13 @@ impl App {
             (None, 0)
         };
 
+        // Initialize version store if enabled
+        let version_store = if config.versions.enabled {
+            VersionStore::new(config.versions.max_versions).ok()
+        } else {
+            None
+        };
+
         Ok(Self {
             editor,
             session,
@@ -88,6 +102,9 @@ impl App {
             writing_stats: None,
             stats,
             streak,
+            version_store,
+            versions: Vec::new(),
+            version_index: 0,
             config,
         })
     }
@@ -125,6 +142,24 @@ impl App {
                 } else {
                     (0.0, false)
                 };
+
+                // Prepare version data for rendering
+                let version_content_opt: Option<String> = match &self.overlay {
+                    Overlay::VersionView(id) => self.get_version_content(*id),
+                    _ => None,
+                };
+                let version_diff_opt: Option<String> = match &self.overlay {
+                    Overlay::VersionDiff(id) => self.get_version_diff(*id),
+                    _ => None,
+                };
+                let version_time_opt: Option<String> = match &self.overlay {
+                    Overlay::VersionView(id) | Overlay::VersionDiff(id) => {
+                        self.versions.iter()
+                            .find(|v| v.id == *id)
+                            .map(|v| v.formatted_time())
+                    }
+                    _ => None,
+                };
                 
                 let state = RenderState {
                     content: &content,
@@ -149,6 +184,12 @@ impl App {
                     goal_met,
                     show_goal: self.config.goals.show_progress || self.config.goals.show_streak,
                     writing_stats: self.writing_stats.as_ref(),
+                    show_versions: self.overlay == Overlay::Versions,
+                    versions: &self.versions,
+                    version_index: self.version_index,
+                    version_view: version_content_opt.as_deref(),
+                    version_diff: version_diff_opt.as_deref(),
+                    version_time: version_time_opt.as_deref(),
                 };
 
                 ui::render(f, &state);
@@ -207,6 +248,65 @@ impl App {
             return;
         }
 
+        // Handle versions overlay
+        if self.overlay == Overlay::Versions {
+            match key.code {
+                KeyCode::Char('j') | KeyCode::Down => {
+                    if !self.versions.is_empty() && self.version_index < self.versions.len() - 1 {
+                        self.version_index += 1;
+                    }
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    if self.version_index > 0 {
+                        self.version_index -= 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    if let Some(version) = self.versions.get(self.version_index) {
+                        self.overlay = Overlay::VersionView(version.id);
+                    }
+                }
+                KeyCode::Char('d') => {
+                    if let Some(version) = self.versions.get(self.version_index) {
+                        self.overlay = Overlay::VersionDiff(version.id);
+                    }
+                }
+                KeyCode::Char('r') => {
+                    if let Some(version) = self.versions.get(self.version_index) {
+                        let id = version.id;
+                        self.restore_version(id);
+                    }
+                }
+                KeyCode::Esc | KeyCode::Char('q') => {
+                    self.overlay = Overlay::None;
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // Handle version view overlay
+        if let Overlay::VersionView(_) = self.overlay {
+            match key.code {
+                KeyCode::Esc | KeyCode::Char('q') => {
+                    self.overlay = Overlay::Versions;
+                }
+                KeyCode::Char('r') => {
+                    if let Overlay::VersionView(id) = self.overlay {
+                        self.restore_version(id);
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // Handle version diff overlay
+        if let Overlay::VersionDiff(_) = self.overlay {
+            self.overlay = Overlay::Versions;
+            return;
+        }
+
         // Normal key handling
         let action = input::handle_key(key, self.mode, &mut self.input_state);
         self.handle_action(action);
@@ -221,6 +321,7 @@ impl App {
                     self.last_save = Instant::now();
                     self.saved_indicator = Some(Instant::now());
                     self.record_stats();
+                    self.save_version(true); // manual save always saves version
                 }
             }
 
@@ -283,6 +384,11 @@ impl App {
                 }
                 self.overlay = Overlay::Stats;
             }
+            Action::ShowVersions => {
+                self.load_versions();
+                self.version_index = 0;
+                self.overlay = Overlay::Versions;
+            }
             Action::HideOverlay => self.overlay = Overlay::None,
 
             // Search
@@ -342,6 +448,11 @@ impl App {
             
             // Record stats on save
             self.record_stats();
+            
+            // Save version on auto-save if configured
+            if self.config.versions.save_on_autosave {
+                self.save_version(false);
+            }
         }
 
         // Clear saved indicator after 2 seconds
@@ -424,6 +535,60 @@ impl App {
         self.editor.move_cursor(crate::editor::Direction::Left, crate::editor::Unit::Line);
         for _ in 0..target_col {
             self.editor.move_cursor(crate::editor::Direction::Right, crate::editor::Unit::Char);
+        }
+    }
+
+    /// Load versions for the current file
+    fn load_versions(&mut self) {
+        if let Some(ref store) = self.version_store {
+            let file_path = self.file_path.to_string_lossy().to_string();
+            self.versions = store.get_versions(&file_path).unwrap_or_default();
+        }
+    }
+
+    /// Save a version of the current content
+    fn save_version(&mut self, force: bool) {
+        if let Some(ref store) = self.version_store {
+            let file_path = self.file_path.to_string_lossy().to_string();
+            let content = self.editor.content().to_string();
+            
+            // Only save if content differs (unless force)
+            if force || store.content_differs(&file_path, &content).unwrap_or(true) {
+                let _ = store.save_version(&file_path, &content);
+            }
+        }
+    }
+
+    /// Get the current version's content (if viewing a version)
+    fn get_version_content(&self, id: i64) -> Option<String> {
+        if let Some(ref store) = self.version_store {
+            if let Ok(Some(version)) = store.get_version(id) {
+                return Some(version.content);
+            }
+        }
+        None
+    }
+
+    /// Get diff between version and current content
+    fn get_version_diff(&self, id: i64) -> Option<String> {
+        if let Some(ref store) = self.version_store {
+            if let Ok(Some(version)) = store.get_version(id) {
+                let current = self.editor.content().to_string();
+                return Some(VersionStore::diff(&version.content, &current));
+            }
+        }
+        None
+    }
+
+    /// Restore content from a version
+    fn restore_version(&mut self, id: i64) {
+        if let Some(content) = self.get_version_content(id) {
+            // Save current as version before restoring
+            self.save_version(true);
+            
+            // Load version content into editor
+            self.editor.set_content(&content);
+            self.overlay = Overlay::None;
         }
     }
 }

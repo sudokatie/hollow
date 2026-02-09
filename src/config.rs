@@ -10,6 +10,8 @@ pub struct Config {
     pub display: DisplayConfig,
     #[serde(default)]
     pub goals: GoalsConfig,
+    #[serde(default)]
+    pub versions: VersionConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -42,12 +44,30 @@ pub struct GoalsConfig {
     pub show_streak: bool,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct VersionConfig {
+    #[serde(default = "default_versions_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_max_versions")]
+    pub max_versions: usize,
+    #[serde(default)]
+    pub save_on_autosave: bool,
+}
+
 fn default_show_progress() -> bool {
     true
 }
 
 fn default_show_streak() -> bool {
     true
+}
+
+fn default_versions_enabled() -> bool {
+    true
+}
+
+fn default_max_versions() -> usize {
+    100
 }
 
 fn default_text_width() -> usize {
@@ -96,6 +116,16 @@ impl Default for GoalsConfig {
             daily_goal: 0, // 0 means disabled
             show_progress: default_show_progress(),
             show_streak: default_show_streak(),
+        }
+    }
+}
+
+impl Default for VersionConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_versions_enabled(),
+            max_versions: default_max_versions(),
+            save_on_autosave: false,
         }
     }
 }

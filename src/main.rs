@@ -6,6 +6,7 @@ mod search;
 mod session;
 mod stats;
 mod ui;
+mod versions;
 
 use std::io::{self, stdout};
 use std::path::PathBuf;
@@ -145,6 +146,6 @@ KEY BINDINGS:
     i (in Navigate)     Return to Write mode
     ? (in Navigate)     Show help
 
-For more information, visit https://github.com/katieblackabee/hollow"#
+For more information, visit https://github.com/sudokatie/hollow"#
     );
 }
