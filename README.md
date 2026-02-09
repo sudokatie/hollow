@@ -20,6 +20,7 @@ Hollow embraces this. It's a writing environment for people who want to write, n
 - Word count and session time tracking (accountability without judgment)
 - Daily goals with progress bar and streak tracking
 - Writing statistics panel (total words, averages, trends)
+- Version history with diff view and restore
 - Search with highlighting
 - Undo/redo (mistakes happen)
 - Configurable text width with centered layout
@@ -107,6 +108,7 @@ Press `Escape` from Write mode to enter Navigate mode. This is where the vim use
 | u | Undo |
 | Ctrl+r | Redo |
 | s | Show writing statistics |
+| v | Browse version history |
 | ? | Show help (because nobody remembers all of these) |
 
 ### Search Mode
@@ -138,6 +140,11 @@ line_spacing = 1          # Lines between paragraphs
 daily_goal = 500          # Words per day (0 to disable)
 show_progress = true      # Show progress bar in status
 show_streak = true        # Show streak counter in status
+
+[versions]
+enabled = true            # Enable version history
+max_versions = 100        # Maximum versions per file
+save_on_autosave = false  # Only save versions on manual save
 ```
 
 Configuration is entirely optional. The defaults work. I tested them.
@@ -154,6 +161,16 @@ Press `s` in Navigate mode to view detailed statistics:
 - Current and longest streak
 - Most productive hour
 - Last 7 days chart
+
+### Version History
+
+Every save creates a version. Press `v` in Navigate mode to browse your document's history:
+- Navigate versions with j/k or arrow keys
+- Press Enter to view a version (read-only)
+- Press `d` to see a diff against current content
+- Press `r` to restore (creates backup of current first)
+
+Versions are compressed and stored in `~/.config/hollow/versions.db`. Old versions are pruned when the limit is reached (oldest first).
 
 ## Philosophy
 
@@ -180,7 +197,7 @@ Press `s` in Navigate mode to view detailed statistics:
 ### v0.2 (Current)
 - [x] Daily goals and streaks
 - [x] Writing statistics panel
-- [ ] Version history
+- [x] Version history
 
 ### Future
 - [ ] Multiple documents (projects)
@@ -200,7 +217,7 @@ Requirements:
 git clone https://github.com/sudokatie/hollow.git
 cd hollow
 cargo build --release
-cargo test           # 77 tests, because I have standards
+cargo test           # 88 tests, because I have standards
 cargo install --path .
 ```
 
