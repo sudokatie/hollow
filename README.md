@@ -21,6 +21,7 @@ Hollow embraces this. It's a writing environment for people who want to write, n
 - Daily goals with progress bar and streak tracking
 - Writing statistics panel (total words, averages, trends)
 - Version history with diff view and restore
+- Export to HTML with clean typography
 - Search with highlighting
 - Undo/redo (mistakes happen)
 - Configurable text width with centered layout
@@ -58,6 +59,18 @@ That's it. Opens the file for editing. Creates it if it doesn't exist. No projec
 --width <N>         Set text width (default: 80)
 --no-autosave       Disable auto-save (live dangerously)
 ```
+
+### Export
+
+When you're ready to share your writing with people who don't use terminals:
+
+```bash
+hollow export draft.md                      # Creates draft.html
+hollow export draft.md -o published.html    # Custom output name
+hollow export draft.md --title "My Essay"   # Custom document title
+```
+
+The exported HTML includes clean, readable typography with reasonable defaults. No JavaScript, no tracking, just your words in a format that looks good in any browser.
 
 ## Key Bindings
 
