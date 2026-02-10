@@ -214,7 +214,7 @@ Versions are compressed and stored in `~/.config/hollow/versions.db`. Old versio
 
 ### Future
 - [ ] Multiple documents (projects)
-- [ ] Export to HTML/PDF
+- [x] Export to HTML (PDF via browser print)
 - [ ] Spell checking integration
 - [ ] Custom themes
 
