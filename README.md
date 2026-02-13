@@ -72,6 +72,30 @@ hollow export draft.md --title "My Essay"   # Custom document title
 
 The exported HTML includes clean, readable typography with reasonable defaults. No JavaScript, no tracking, just your words in a format that looks good in any browser.
 
+### Projects
+
+Working on something with multiple files? Use projects to track them together:
+
+```bash
+hollow project init "My Novel"    # Creates .hollow-project in current directory
+hollow project add chapter1.md chapter2.md
+hollow project info               # Show project details
+hollow project stats              # Word counts for all documents
+```
+
+Project files are YAML and can include per-project settings that override your global config:
+
+```yaml
+name: My Novel
+documents:
+  - chapter1.md
+  - chapter2.md
+  - notes.md
+settings:
+  daily_goal: 1500
+  show_progress: true
+```
+
 ## Key Bindings
 
 ### Universal (work in all modes)
@@ -212,9 +236,9 @@ Versions are compressed and stored in `~/.config/hollow/versions.db`. Old versio
 - [x] Writing statistics panel
 - [x] Version history
 
-### Future
-- [ ] Multiple documents (projects)
-- [x] Export to HTML (PDF via browser print)
+### v0.3 (In Progress)
+- [x] Projects (init/add/info/stats commands)
+- [ ] Project document switcher UI
 - [ ] Spell checking integration
 - [ ] Custom themes
 
@@ -230,7 +254,7 @@ Requirements:
 git clone https://github.com/sudokatie/hollow.git
 cd hollow
 cargo build --release
-cargo test           # 88 tests, because I have standards
+cargo test           # 103 tests, because I have standards
 cargo install --path .
 ```
 
