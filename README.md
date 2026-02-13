@@ -146,6 +146,7 @@ Press `Escape` from Write mode to enter Navigate mode. This is where the vim use
 | Ctrl+r | Redo |
 | s | Show writing statistics |
 | v | Browse version history |
+| P | Switch project documents |
 | ? | Show help (because nobody remembers all of these) |
 
 ### Search Mode
@@ -236,9 +237,9 @@ Versions are compressed and stored in `~/.config/hollow/versions.db`. Old versio
 - [x] Writing statistics panel
 - [x] Version history
 
-### v0.3 (In Progress)
+### v0.3 (Current)
 - [x] Projects (init/add/info/stats commands)
-- [ ] Project document switcher UI
+- [x] Project document switcher UI (press P in Navigate mode)
 - [ ] Spell checking integration
 - [ ] Custom themes
 
