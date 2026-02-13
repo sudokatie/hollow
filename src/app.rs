@@ -12,6 +12,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use crate::config::Config;
 use crate::editor::Editor;
 use crate::input::{self, Action, InputState, Mode};
+use crate::project::Project;
 use crate::search::Search;
 use crate::session::Session;
 use crate::stats::StatsTracker;
@@ -27,6 +28,7 @@ pub enum Overlay {
     Versions,
     VersionView(i64),  // Viewing specific version by ID
     VersionDiff(i64),  // Showing diff for version ID
+    ProjectDocs,       // Project document picker
     QuitConfirm,
 }
 
@@ -53,6 +55,9 @@ pub struct App {
     pub version_store: Option<VersionStore>,
     pub versions: Vec<Version>,
     pub version_index: usize,
+    // Project state
+    pub project: Option<Project>,
+    pub project_doc_index: usize,
 }
 
 impl App {
@@ -84,6 +89,12 @@ impl App {
             None
         };
 
+        // Try to load project from directory containing the file
+        let project = file_path.parent()
+            .map(|dir| dir.join(".hollow-project"))
+            .filter(|p| p.exists())
+            .and_then(|p| Project::load(&p).ok());
+
         Ok(Self {
             editor,
             session,
@@ -105,6 +116,8 @@ impl App {
             version_store,
             versions: Vec::new(),
             version_index: 0,
+            project,
+            project_doc_index: 0,
             config,
         })
     }
@@ -190,6 +203,15 @@ impl App {
                     version_view: version_content_opt.as_deref(),
                     version_diff: version_diff_opt.as_deref(),
                     version_time: version_time_opt.as_deref(),
+                    show_project_docs: self.overlay == Overlay::ProjectDocs,
+                    project_name: self.project.as_ref().map(|p| p.name.as_str()),
+                    project_docs: self.project.as_ref()
+                        .map(|p| p.documents.as_slice())
+                        .unwrap_or(&[]),
+                    project_doc_index: self.project_doc_index,
+                    current_doc: self.file_path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(""),
                 };
 
                 ui::render(f, &state);
@@ -307,6 +329,41 @@ impl App {
             return;
         }
 
+        // Handle project docs overlay
+        if self.overlay == Overlay::ProjectDocs {
+            if let Some(ref project) = self.project {
+                let doc_count = project.documents.len();
+                match key.code {
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        if doc_count > 0 && self.project_doc_index < doc_count - 1 {
+                            self.project_doc_index += 1;
+                        }
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        if self.project_doc_index > 0 {
+                            self.project_doc_index -= 1;
+                        }
+                    }
+                    KeyCode::Enter => {
+                        // Switch to selected document
+                        if let Some(doc) = project.documents.get(self.project_doc_index) {
+                            if let Some(path) = project.resolve_document(doc) {
+                                self.switch_document(path);
+                            }
+                        }
+                        self.overlay = Overlay::None;
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') => {
+                        self.overlay = Overlay::None;
+                    }
+                    _ => {}
+                }
+            } else {
+                self.overlay = Overlay::None;
+            }
+            return;
+        }
+
         // Normal key handling
         let action = input::handle_key(key, self.mode, &mut self.input_state);
         self.handle_action(action);
@@ -388,6 +445,12 @@ impl App {
                 self.load_versions();
                 self.version_index = 0;
                 self.overlay = Overlay::Versions;
+            }
+            Action::ShowProjectDocs => {
+                if self.project.is_some() {
+                    self.project_doc_index = 0;
+                    self.overlay = Overlay::ProjectDocs;
+                }
             }
             Action::HideOverlay => self.overlay = Overlay::None,
 
@@ -589,6 +652,22 @@ impl App {
             // Load version content into editor
             self.editor.set_content(&content);
             self.overlay = Overlay::None;
+        }
+    }
+
+    /// Switch to a different document in the project
+    fn switch_document(&mut self, path: PathBuf) {
+        // Save current document if modified
+        if self.editor.is_modified() {
+            let _ = self.editor.save(&self.file_path);
+        }
+        
+        // Try to load the new document
+        if let Ok(()) = self.editor.load(&path) {
+            self.file_path = path;
+            self.session = Session::new(self.editor.word_count());
+            self.search.clear();
+            self.load_versions();
         }
     }
 }

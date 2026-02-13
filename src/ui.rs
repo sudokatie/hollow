@@ -44,6 +44,12 @@ pub struct RenderState<'a> {
     pub version_view: Option<&'a str>,    // Content of version being viewed
     pub version_diff: Option<&'a str>,    // Diff output
     pub version_time: Option<&'a str>,    // Time of version being viewed
+    // Project documents
+    pub show_project_docs: bool,
+    pub project_name: Option<&'a str>,
+    pub project_docs: &'a [String],
+    pub project_doc_index: usize,
+    pub current_doc: &'a str,
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -208,6 +214,14 @@ pub fn render(frame: &mut Frame, state: &RenderState) {
         render_version_view(frame, area, content, state.version_time.unwrap_or(""));
     } else if let Some(diff) = state.version_diff {
         render_version_diff(frame, area, diff, state.version_time.unwrap_or(""));
+    } else if state.show_project_docs {
+        render_project_docs_overlay(
+            frame, area,
+            state.project_name.unwrap_or("Project"),
+            state.project_docs,
+            state.project_doc_index,
+            state.current_doc,
+        );
     } else if state.search_active {
         render_search_prompt(frame, area, state.search_query);
     }
@@ -672,4 +686,72 @@ fn render_version_diff(frame: &mut Frame, area: Rect, diff: &str, time: &str) {
     let help = Paragraph::new("  Press any key to return")
         .style(Style::default().fg(Color::DarkGray));
     frame.render_widget(help, help_area);
+}
+
+fn render_project_docs_overlay(
+    frame: &mut Frame,
+    area: Rect,
+    project_name: &str,
+    docs: &[String],
+    selected: usize,
+    current_doc: &str,
+) {
+    let width = 60.min(area.width - 4);
+    let height = 20.min(area.height - 2);
+    let x = (area.width - width) / 2;
+    let y = (area.height - height) / 2;
+
+    let overlay_area = Rect { x, y, width, height };
+    frame.render_widget(Clear, overlay_area);
+
+    let content_height = height.saturating_sub(4) as usize;
+
+    if docs.is_empty() {
+        let text = "\n  No documents in project.\n\n  Use 'hollow project add' to add documents.\n\n  Press Escape to close";
+        let title = format!(" {} ", project_name);
+        let para = Paragraph::new(text)
+            .block(Block::default().borders(Borders::ALL).title(title))
+            .style(Style::default().fg(Color::White));
+        frame.render_widget(para, overlay_area);
+        return;
+    }
+
+    let mut lines: Vec<Line> = Vec::new();
+    lines.push(Line::from(""));
+
+    let scroll = if selected >= content_height.saturating_sub(2) {
+        selected.saturating_sub(content_height.saturating_sub(3))
+    } else {
+        0
+    };
+
+    for (i, doc) in docs.iter().enumerate().skip(scroll).take(content_height.saturating_sub(3)) {
+        let is_current = doc == current_doc;
+        let prefix = if i == selected { "> " } else { "  " };
+        let suffix = if is_current { " [current]" } else { "" };
+        let line_text = format!("{}{}{}", prefix, doc, suffix);
+
+        let style = if i == selected {
+            Style::default().fg(Color::Yellow)
+        } else if is_current {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::White)
+        };
+
+        lines.push(Line::from(Span::styled(line_text, style)));
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "  j/k: navigate  Enter: open  q: close",
+        Style::default().fg(Color::DarkGray),
+    )));
+
+    let title = format!(" {} ", project_name);
+    let para = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title(title))
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(para, overlay_area);
 }
