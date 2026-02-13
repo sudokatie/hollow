@@ -61,6 +61,7 @@ hr {
 "#;
 
 /// Export options.
+#[derive(Default)]
 pub struct ExportOptions {
     /// Custom CSS to use instead of default.
     pub css: Option<String>,
@@ -68,14 +69,6 @@ pub struct ExportOptions {
     pub title: Option<String>,
 }
 
-impl Default for ExportOptions {
-    fn default() -> Self {
-        Self {
-            css: None,
-            title: None,
-        }
-    }
-}
 
 /// Export a markdown file to HTML.
 pub fn export_to_html<P: AsRef<Path>>(

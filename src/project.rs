@@ -74,7 +74,7 @@ impl Project {
     pub fn save(&self, path: Option<&Path>) -> Result<(), ProjectError> {
         let path = path
             .or(self.path.as_deref())
-            .ok_or_else(|| ProjectError::NoPath)?;
+            .ok_or(ProjectError::NoPath)?;
         
         let content = serde_yaml::to_string(self)
             .map_err(|e| ProjectError::Serialize(e.to_string()))?;
@@ -110,7 +110,7 @@ impl Project {
 
     /// Calculate project statistics
     pub fn stats(&self) -> Result<ProjectStats, ProjectError> {
-        let base = self.base_dir().ok_or_else(|| ProjectError::NoPath)?;
+        let base = self.base_dir().ok_or(ProjectError::NoPath)?;
         let mut stats = ProjectStats {
             document_count: self.documents.len(),
             ..Default::default()

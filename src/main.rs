@@ -198,7 +198,7 @@ fn run_export(args: &[String]) -> io::Result<()> {
 }
 
 fn run_project(args: &[String]) -> io::Result<()> {
-    use project::{Project, ProjectError};
+    use project::Project;
     use std::path::Path;
 
     if args.is_empty() || args[0] == "--help" || args[0] == "-h" {
@@ -263,7 +263,7 @@ fn run_project(args: &[String]) -> io::Result<()> {
                         println!("Added: {}", doc);
                     }
                     project.save(Some(path)).map_err(|e| {
-                        io::Error::new(io::ErrorKind::Other, e.to_string())
+                        io::Error::other(e.to_string())
                     })?;
                     Ok(())
                 }
