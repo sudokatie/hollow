@@ -3,6 +3,7 @@ mod config;
 mod editor;
 mod export;
 mod input;
+mod project;
 mod search;
 mod session;
 mod stats;
