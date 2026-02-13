@@ -407,6 +407,7 @@ fn render_help_overlay(frame: &mut Frame, area: Rect) {
     Ctrl+G          Toggle status
     s               Writing statistics
     v               Version history
+    P               Project documents
     ?               Show this help
 
   Press any key to close
