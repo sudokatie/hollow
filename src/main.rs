@@ -7,6 +7,7 @@ mod project;
 mod search;
 mod session;
 mod stats;
+mod theme;
 mod ui;
 mod versions;
 

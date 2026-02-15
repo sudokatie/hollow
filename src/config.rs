@@ -2,6 +2,8 @@ use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::theme::Theme;
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Config {
     #[serde(default)]
@@ -12,6 +14,42 @@ pub struct Config {
     pub goals: GoalsConfig,
     #[serde(default)]
     pub versions: VersionConfig,
+    #[serde(default)]
+    pub theme: ThemeConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ThemeConfig {
+    /// Name of preset theme to use (dark, light, sepia, solarized)
+    #[serde(default = "default_theme_preset")]
+    pub preset: String,
+    /// Custom theme (overrides preset if provided)
+    #[serde(default)]
+    pub custom: Option<Theme>,
+}
+
+fn default_theme_preset() -> String {
+    "dark".to_string()
+}
+
+impl Default for ThemeConfig {
+    fn default() -> Self {
+        Self {
+            preset: default_theme_preset(),
+            custom: None,
+        }
+    }
+}
+
+impl ThemeConfig {
+    /// Get the active theme (custom if set, otherwise preset)
+    pub fn get_theme(&self) -> Theme {
+        if let Some(ref custom) = self.custom {
+            custom.clone()
+        } else {
+            Theme::from_name(&self.preset).unwrap_or_default()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
