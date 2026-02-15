@@ -1,14 +1,14 @@
 use ratatui::{
     layout::{Alignment, Rect},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
 
 use crate::input::Mode;
-
 use crate::stats::WritingStats;
+use crate::theme::Theme;
 use crate::versions::Version;
 
 /// Render state passed to UI
@@ -50,6 +50,8 @@ pub struct RenderState<'a> {
     pub project_docs: &'a [String],
     pub project_doc_index: usize,
     pub current_doc: &'a str,
+    // Theme
+    pub theme: &'a Theme,
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -359,7 +361,9 @@ fn render_status(frame: &mut Frame, area: Rect, state: &RenderState) {
     );
 
     let status_line = Paragraph::new(status)
-        .style(Style::default().fg(Color::DarkGray))
+        .style(Style::default()
+            .fg(state.theme.status_text.to_color())
+            .bg(state.theme.status_bg.to_color()))
         .alignment(Alignment::Center);
 
     frame.render_widget(status_line, area);

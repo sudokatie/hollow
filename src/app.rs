@@ -16,6 +16,7 @@ use crate::project::Project;
 use crate::search::Search;
 use crate::session::Session;
 use crate::stats::StatsTracker;
+use crate::theme::Theme;
 use crate::ui::{self, RenderState};
 use crate::versions::{Version, VersionStore};
 
@@ -58,6 +59,8 @@ pub struct App {
     // Project state
     pub project: Option<Project>,
     pub project_doc_index: usize,
+    // Theme
+    pub theme: Theme,
 }
 
 impl App {
@@ -95,6 +98,9 @@ impl App {
             .filter(|p| p.exists())
             .and_then(|p| Project::load(&p).ok());
 
+        // Load theme from config
+        let theme = config.theme.get_theme();
+
         Ok(Self {
             editor,
             session,
@@ -118,6 +124,7 @@ impl App {
             version_index: 0,
             project,
             project_doc_index: 0,
+            theme,
             config,
         })
     }
@@ -212,6 +219,7 @@ impl App {
                     current_doc: self.file_path.file_name()
                         .and_then(|n| n.to_str())
                         .unwrap_or(""),
+                    theme: &self.theme,
                 };
 
                 ui::render(f, &state);
