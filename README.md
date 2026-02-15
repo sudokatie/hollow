@@ -26,6 +26,51 @@ Hollow embraces this. It's a writing environment for people who want to write, n
 - Undo/redo (mistakes happen)
 - Configurable text width with centered layout
 - Backup on first edit (paranoia is a feature)
+- Custom themes (dark, light, sepia, solarized, or your own)
+
+## Themes
+
+Hollow supports customizable color themes to match your aesthetic (or just reduce eye strain at 2 AM).
+
+### Built-in Themes
+
+- **dark** - Terminal default colors, easy on the eyes
+- **light** - White background for daytime writing
+- **sepia** - Warm, paper-like tones
+- **solarized** - The classic Solarized dark palette
+
+### Configuration
+
+Set your theme in `~/.config/hollow/config.toml`:
+
+```toml
+[theme]
+preset = "sepia"
+```
+
+### Custom Colors
+
+Override any color with RGB values or named colors:
+
+```toml
+[theme]
+preset = "dark"
+
+[theme.custom]
+name = "my-theme"
+background = [30, 30, 40]       # RGB array
+text = "white"                  # Named color
+dim = [120, 120, 130]
+cursor = "yellow"
+status_bg = [40, 40, 50]
+status_text = [200, 200, 200]
+highlight = [255, 200, 0]
+success = "green"
+warning = "yellow"
+border = [80, 80, 90]
+```
+
+Named colors: black, white, red, green, yellow, blue, magenta, cyan, gray, darkgray, lightred, lightgreen, lightyellow, lightblue, lightmagenta, lightcyan, reset
 
 ## Installation
 
