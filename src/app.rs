@@ -188,6 +188,9 @@ impl App {
                     }
                     _ => None,
                 };
+
+                // Check spelling if enabled
+                let spell_result = self.spell_checker.check_text(&content);
                 
                 let state = RenderState {
                     content: &content,
@@ -229,6 +232,7 @@ impl App {
                         .unwrap_or(""),
                     theme: &self.theme,
                     spell_enabled: self.spell_checker.is_enabled(),
+                    misspellings: &spell_result.misspellings,
                 };
 
                 ui::render(f, &state);

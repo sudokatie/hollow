@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use crate::input::Mode;
+use crate::spell::Misspelling;
 use crate::stats::WritingStats;
 use crate::theme::Theme;
 use crate::versions::Version;
@@ -54,6 +55,7 @@ pub struct RenderState<'a> {
     pub theme: &'a Theme,
     // Spell checking
     pub spell_enabled: bool,
+    pub misspellings: &'a [Misspelling],
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -256,7 +258,7 @@ fn render_content(frame: &mut Frame, area: Rect, state: &RenderState) -> (u16, u
         0
     };
 
-    // Build styled lines with search highlighting
+    // Build styled lines with search and spell highlighting
     let display_lines: Vec<Line> = visual_lines
         .iter()
         .enumerate()
@@ -265,11 +267,18 @@ fn render_content(frame: &mut Frame, area: Rect, state: &RenderState) -> (u16, u
         .map(|(idx, line)| {
             let (logical_line, is_continuation) = line_map.get(idx).copied().unwrap_or((0, false));
 
-            // Highlight search matches
-            let styled_line = if !state.search_matches.is_empty() && !state.search_query.is_empty() {
-                highlight_matches(line, state.search_query, logical_line, is_continuation, state.content)
+            // Start with spell highlighting if enabled
+            let base_line = if state.spell_enabled && !state.misspellings.is_empty() {
+                highlight_misspellings(line, logical_line, is_continuation, state.misspellings)
             } else {
                 Line::from(line.as_str())
+            };
+
+            // Then apply search highlighting on top
+            let styled_line = if !state.search_matches.is_empty() && !state.search_query.is_empty() {
+                highlight_matches_on_line(&base_line, state.search_query)
+            } else {
+                base_line
             };
 
             styled_line
@@ -327,6 +336,121 @@ fn highlight_matches(
     } else {
         Line::from(spans)
     }
+}
+
+/// Highlight misspelled words in a line with red underline
+fn highlight_misspellings(
+    line: &str,
+    logical_line: usize,
+    is_continuation: bool,
+    misspellings: &[Misspelling],
+) -> Line<'static> {
+    // Get misspellings for this logical line
+    let line_misspellings: Vec<&Misspelling> = misspellings
+        .iter()
+        .filter(|m| m.line == logical_line)
+        .collect();
+
+    if line_misspellings.is_empty() {
+        return Line::from(line.to_string());
+    }
+
+    // Account for continuation indent (used in position calculations)
+    let _col_offset = if is_continuation { WRAP_INDENT.len() } else { 0 };
+
+    let mut spans = Vec::new();
+    let mut last_end = 0;
+    let chars: Vec<char> = line.chars().collect();
+
+    for m in line_misspellings {
+        // Adjust column for visual line (accounting for wrap indent)
+        let visual_col = if is_continuation {
+            // For continuation lines, we need to figure out where this word appears
+            // This is complex with wrapping, so for now highlight based on word match
+            if let Some(pos) = line.to_lowercase().find(&m.word.to_lowercase()) {
+                pos
+            } else {
+                continue;
+            }
+        } else {
+            m.col
+        };
+
+        if visual_col >= chars.len() {
+            continue;
+        }
+
+        // Add text before misspelling
+        if visual_col > last_end {
+            let before: String = chars[last_end..visual_col].iter().collect();
+            spans.push(Span::raw(before));
+        }
+
+        // Add misspelled word with underline
+        let word_end = (visual_col + m.word.len()).min(chars.len());
+        let word: String = chars[visual_col..word_end].iter().collect();
+        spans.push(Span::styled(
+            word,
+            Style::default().fg(Color::Red).add_modifier(Modifier::UNDERLINED),
+        ));
+        last_end = word_end;
+    }
+
+    // Add remaining text
+    if last_end < chars.len() {
+        let remaining: String = chars[last_end..].iter().collect();
+        spans.push(Span::raw(remaining));
+    }
+
+    if spans.is_empty() {
+        Line::from(line.to_string())
+    } else {
+        Line::from(spans)
+    }
+}
+
+/// Apply search highlighting on top of an existing styled line
+fn highlight_matches_on_line(line: &Line, query: &str) -> Line<'static> {
+    if query.is_empty() {
+        // Convert to owned by rebuilding
+        let spans: Vec<Span<'static>> = line.spans.iter()
+            .map(|s| Span::styled(s.content.to_string(), s.style))
+            .collect();
+        return Line::from(spans);
+    }
+
+    let query_lower = query.to_lowercase();
+    let mut new_spans = Vec::new();
+
+    for span in line.spans.iter() {
+        let text = span.content.as_ref();
+        let text_lower = text.to_lowercase();
+        let base_style = span.style;
+
+        let mut last_end = 0;
+        for (start, _) in text_lower.match_indices(&query_lower) {
+            // Add text before match with original style
+            if start > last_end {
+                new_spans.push(Span::styled(text[last_end..start].to_string(), base_style));
+            }
+            // Add highlighted match
+            new_spans.push(Span::styled(
+                text[start..start + query.len()].to_string(),
+                Style::default().bg(Color::Yellow).fg(Color::Black),
+            ));
+            last_end = start + query.len();
+        }
+
+        // Add remaining text with original style
+        if last_end < text.len() {
+            new_spans.push(Span::styled(text[last_end..].to_string(), base_style));
+        } else if last_end == 0 {
+            // No matches in this span, keep original
+            new_spans.push(Span::styled(text.to_string(), base_style));
+        }
+    }
+
+    Line::from(new_spans)
 }
 
 fn render_status(frame: &mut Frame, area: Rect, state: &RenderState) {
