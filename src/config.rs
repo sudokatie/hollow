@@ -16,6 +16,8 @@ pub struct Config {
     pub versions: VersionConfig,
     #[serde(default)]
     pub theme: ThemeConfig,
+    #[serde(default)]
+    pub spelling: SpellingConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -90,6 +92,34 @@ pub struct VersionConfig {
     pub max_versions: usize,
     #[serde(default)]
     pub save_on_autosave: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SpellingConfig {
+    #[serde(default = "default_spelling_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_language")]
+    pub language: String,
+    #[serde(default)]
+    pub custom_dict: Option<String>,
+}
+
+fn default_spelling_enabled() -> bool {
+    true
+}
+
+fn default_language() -> String {
+    "en_US".to_string()
+}
+
+impl Default for SpellingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_spelling_enabled(),
+            language: default_language(),
+            custom_dict: None,
+        }
+    }
 }
 
 fn default_show_progress() -> bool {

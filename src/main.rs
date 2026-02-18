@@ -6,6 +6,7 @@ mod input;
 mod project;
 mod search;
 mod session;
+mod spell;
 mod stats;
 mod theme;
 mod ui;
