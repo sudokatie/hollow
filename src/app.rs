@@ -15,6 +15,7 @@ use crate::input::{self, Action, InputState, Mode};
 use crate::project::Project;
 use crate::search::Search;
 use crate::session::Session;
+use crate::spell::SpellChecker;
 use crate::stats::StatsTracker;
 use crate::theme::Theme;
 use crate::ui::{self, RenderState};
@@ -61,6 +62,8 @@ pub struct App {
     pub project_doc_index: usize,
     // Theme
     pub theme: Theme,
+    // Spell checking
+    pub spell_checker: SpellChecker,
 }
 
 impl App {
@@ -101,6 +104,10 @@ impl App {
         // Load theme from config
         let theme = config.theme.get_theme();
 
+        // Initialize spell checker
+        let mut spell_checker = SpellChecker::new(&config.spelling.language);
+        spell_checker.set_enabled(config.spelling.enabled);
+
         Ok(Self {
             editor,
             session,
@@ -125,6 +132,7 @@ impl App {
             project,
             project_doc_index: 0,
             theme,
+            spell_checker,
             config,
         })
     }
@@ -220,6 +228,7 @@ impl App {
                         .and_then(|n| n.to_str())
                         .unwrap_or(""),
                     theme: &self.theme,
+                    spell_enabled: self.spell_checker.is_enabled(),
                 };
 
                 ui::render(f, &state);
@@ -440,6 +449,12 @@ impl App {
                 if self.show_status {
                     self.status_timer = Some(Instant::now());
                 }
+            }
+            Action::ToggleSpellCheck => {
+                self.spell_checker.toggle();
+                // Show status briefly to indicate the change
+                self.show_status = true;
+                self.status_timer = Some(Instant::now());
             }
             Action::ShowHelp => self.overlay = Overlay::Help,
             Action::ShowStats => {

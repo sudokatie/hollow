@@ -52,6 +52,8 @@ pub struct RenderState<'a> {
     pub current_doc: &'a str,
     // Theme
     pub theme: &'a Theme,
+    // Spell checking
+    pub spell_enabled: bool,
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -331,6 +333,7 @@ fn render_status(frame: &mut Frame, area: Rect, state: &RenderState) {
     // Format per spec 2.4: "Words: NNN  |  Session: XXm  |  [Modified]"
     let modified_str = if state.modified { "  |  [Modified]" } else { "" };
     let saved_str = if state.show_saved_indicator { "  Saved" } else { "" };
+    let spell_str = if state.spell_enabled { "  |  [Spell]" } else { "" };
     
     // Goal progress string
     let goal_str = if state.show_goal && state.daily_goal > 0 {
@@ -356,8 +359,8 @@ fn render_status(frame: &mut Frame, area: Rect, state: &RenderState) {
     };
 
     let status = format!(
-        "Words: {}  |  Session: {}{}{}{}{}",
-        state.word_count, state.elapsed, goal_str, streak_str, modified_str, saved_str
+        "Words: {}  |  Session: {}{}{}{}{}{}",
+        state.word_count, state.elapsed, spell_str, goal_str, streak_str, modified_str, saved_str
     );
 
     let status_line = Paragraph::new(status)

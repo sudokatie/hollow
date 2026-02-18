@@ -36,6 +36,7 @@ pub enum Action {
     EnterWriteModeWithChar(char), // Enter write mode and insert char (per spec 3.1)
     // UI
     ToggleStatus,
+    ToggleSpellCheck,
     ShowHelp,
     ShowStats,
     ShowVersions,
@@ -91,6 +92,7 @@ fn handle_universal(key: KeyEvent) -> Option<Action> {
         (KeyCode::Char('g'), KeyModifiers::CONTROL) => Some(Action::ToggleStatus),
         (KeyCode::Char('z'), KeyModifiers::CONTROL) => Some(Action::Undo),
         (KeyCode::Char('y'), KeyModifiers::CONTROL) => Some(Action::Redo),
+        (KeyCode::Char(';'), KeyModifiers::CONTROL) => Some(Action::ToggleSpellCheck),
         _ => None,
     }
 }
@@ -459,6 +461,19 @@ mod tests {
                 &mut state
             ),
             Action::ShowHelp
+        );
+    }
+
+    #[test]
+    fn test_ctrl_semicolon_toggles_spell() {
+        let mut state = InputState::default();
+        assert_eq!(
+            handle_key(key_ctrl(';'), Mode::Write, &mut state),
+            Action::ToggleSpellCheck
+        );
+        assert_eq!(
+            handle_key(key_ctrl(';'), Mode::Navigate, &mut state),
+            Action::ToggleSpellCheck
         );
     }
 }
