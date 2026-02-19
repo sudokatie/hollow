@@ -909,7 +909,7 @@ fn render_spell_suggestions_overlay(
     selected: usize,
 ) {
     let width = 40.min(area.width - 4);
-    let height = (suggestions.len() + 6).min(15).max(6) as u16;
+    let height = (suggestions.len() + 6).clamp(6, 15) as u16;
     let height = height.min(area.height - 2);
     let x = (area.width - width) / 2;
     let y = (area.height - height) / 2;
