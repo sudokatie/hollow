@@ -23,6 +23,7 @@ Hollow embraces this. It's a writing environment for people who want to write, n
 - Version history with diff view and restore
 - Export to HTML with clean typography
 - Search with highlighting
+- Spell checking with suggestion popup
 - Undo/redo (mistakes happen)
 - Configurable text width with centered layout
 - Backup on first edit (paranoia is a feature)
@@ -152,6 +153,8 @@ settings:
 | Ctrl+G | Toggle status line |
 | Ctrl+Z | Undo |
 | Ctrl+Y | Redo |
+| Ctrl+; | Toggle spell checking |
+| Ctrl+. | Show spell suggestions (when on misspelled word) |
 
 ### Write Mode
 
@@ -228,6 +231,10 @@ show_streak = true        # Show streak counter in status
 enabled = true            # Enable version history
 max_versions = 100        # Maximum versions per file
 save_on_autosave = false  # Only save versions on manual save
+
+[spelling]
+enabled = true            # Enable spell checking
+language = "en_US"        # Dictionary language
 ```
 
 Configuration is entirely optional. The defaults work. I tested them.
@@ -254,6 +261,24 @@ Every save creates a version. Press `v` in Navigate mode to browse your document
 - Press `r` to restore (creates backup of current first)
 
 Versions are compressed and stored in `~/.config/hollow/versions.db`. Old versions are pruned when the limit is reached (oldest first).
+
+### Spell Checking
+
+Hollow includes spell checking using Hunspell-compatible dictionaries:
+- Misspelled words are highlighted with a red underline
+- Toggle spell checking with Ctrl+;
+- Show suggestions with Ctrl+. when cursor is on a misspelled word
+- Navigate suggestions with j/k or arrow keys
+- Press Enter to replace the word with the selected suggestion
+- Press Tab to add the word to your personal dictionary
+
+The status line shows `[Spell]` when spell checking is enabled.
+
+Personal dictionary is stored in `~/.config/hollow/personal.dic`.
+
+Requires Hunspell dictionaries installed on your system:
+- macOS: Install via Homebrew: `brew install hunspell` then download dictionaries to `/usr/local/share/hunspell/`
+- Linux: Usually available via package manager (e.g., `apt install hunspell-en-us`)
 
 ## Philosophy
 
@@ -285,8 +310,8 @@ Versions are compressed and stored in `~/.config/hollow/versions.db`. Old versio
 ### v0.3 (Current)
 - [x] Projects (init/add/info/stats commands)
 - [x] Project document switcher UI (press P in Navigate mode)
-- [ ] Spell checking integration
-- [ ] Custom themes
+- [x] Spell checking with suggestion popup
+- [x] Custom themes
 
 See [ROADMAP.md](ROADMAP.md) for details.
 
@@ -300,7 +325,7 @@ Requirements:
 git clone https://github.com/sudokatie/hollow.git
 cd hollow
 cargo build --release
-cargo test           # 103 tests, because I have standards
+cargo test           # 128 tests, because I have standards
 cargo install --path .
 ```
 
