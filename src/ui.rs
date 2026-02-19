@@ -56,6 +56,11 @@ pub struct RenderState<'a> {
     // Spell checking
     pub spell_enabled: bool,
     pub misspellings: &'a [Misspelling],
+    // Spell suggestions popup
+    pub show_spell_suggestions: bool,
+    pub spell_suggestion_word: &'a str,
+    pub spell_suggestions: &'a [String],
+    pub spell_suggestion_index: usize,
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -227,6 +232,13 @@ pub fn render(frame: &mut Frame, state: &RenderState) {
             state.project_docs,
             state.project_doc_index,
             state.current_doc,
+        );
+    } else if state.show_spell_suggestions {
+        render_spell_suggestions_overlay(
+            frame, area,
+            state.spell_suggestion_word,
+            state.spell_suggestions,
+            state.spell_suggestion_index,
         );
     } else if state.search_active {
         render_search_prompt(frame, area, state.search_query);
@@ -881,6 +893,72 @@ fn render_project_docs_overlay(
     )));
 
     let title = format!(" {} ", project_name);
+    let para = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title(title))
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(para, overlay_area);
+}
+
+/// Render spell suggestions popup
+fn render_spell_suggestions_overlay(
+    frame: &mut Frame,
+    area: Rect,
+    word: &str,
+    suggestions: &[String],
+    selected: usize,
+) {
+    let width = 40.min(area.width - 4);
+    let height = (suggestions.len() + 6).min(15).max(6) as u16;
+    let height = height.min(area.height - 2);
+    let x = (area.width - width) / 2;
+    let y = (area.height - height) / 2;
+
+    let overlay_area = Rect { x, y, width, height };
+    frame.render_widget(Clear, overlay_area);
+
+    let mut lines: Vec<Line> = Vec::new();
+    lines.push(Line::from(""));
+
+    if suggestions.is_empty() {
+        lines.push(Line::from(Span::styled(
+            format!("  No suggestions for '{}'", word),
+            Style::default().fg(Color::Yellow),
+        )));
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  Tab: add to dictionary  Esc: cancel",
+            Style::default().fg(Color::DarkGray),
+        )));
+    } else {
+        let content_height = height.saturating_sub(5) as usize;
+        let scroll = if selected >= content_height {
+            selected.saturating_sub(content_height - 1)
+        } else {
+            0
+        };
+
+        for (i, suggestion) in suggestions.iter().enumerate().skip(scroll).take(content_height) {
+            let prefix = if i == selected { "> " } else { "  " };
+            let line_text = format!("{}{}", prefix, suggestion);
+
+            let style = if i == selected {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default().fg(Color::White)
+            };
+
+            lines.push(Line::from(Span::styled(line_text, style)));
+        }
+
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  j/k: navigate  Enter: replace  Tab: add to dict  Esc: cancel",
+            Style::default().fg(Color::DarkGray),
+        )));
+    }
+
+    let title = format!(" Suggestions for '{}' ", word);
     let para = Paragraph::new(lines)
         .block(Block::default().borders(Borders::ALL).title(title))
         .style(Style::default().fg(Color::White));

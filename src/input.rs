@@ -37,6 +37,7 @@ pub enum Action {
     // UI
     ToggleStatus,
     ToggleSpellCheck,
+    ShowSpellSuggestions,
     ShowHelp,
     ShowStats,
     ShowVersions,
@@ -93,6 +94,7 @@ fn handle_universal(key: KeyEvent) -> Option<Action> {
         (KeyCode::Char('z'), KeyModifiers::CONTROL) => Some(Action::Undo),
         (KeyCode::Char('y'), KeyModifiers::CONTROL) => Some(Action::Redo),
         (KeyCode::Char(';'), KeyModifiers::CONTROL) => Some(Action::ToggleSpellCheck),
+        (KeyCode::Char('.'), KeyModifiers::CONTROL) => Some(Action::ShowSpellSuggestions),
         _ => None,
     }
 }
@@ -474,6 +476,19 @@ mod tests {
         assert_eq!(
             handle_key(key_ctrl(';'), Mode::Navigate, &mut state),
             Action::ToggleSpellCheck
+        );
+    }
+
+    #[test]
+    fn test_ctrl_dot_shows_spell_suggestions() {
+        let mut state = InputState::default();
+        assert_eq!(
+            handle_key(key_ctrl('.'), Mode::Write, &mut state),
+            Action::ShowSpellSuggestions
+        );
+        assert_eq!(
+            handle_key(key_ctrl('.'), Mode::Navigate, &mut state),
+            Action::ShowSpellSuggestions
         );
     }
 }

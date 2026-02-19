@@ -32,6 +32,13 @@ pub enum Overlay {
     VersionDiff(i64),  // Showing diff for version ID
     ProjectDocs,       // Project document picker
     QuitConfirm,
+    SpellSuggestions {
+        word: String,
+        suggestions: Vec<String>,
+        index: usize,
+        line: usize,
+        col: usize,
+    },
 }
 
 /// Main application state
@@ -233,6 +240,19 @@ impl App {
                     theme: &self.theme,
                     spell_enabled: self.spell_checker.is_enabled(),
                     misspellings: &spell_result.misspellings,
+                    show_spell_suggestions: matches!(&self.overlay, Overlay::SpellSuggestions { .. }),
+                    spell_suggestion_word: match &self.overlay {
+                        Overlay::SpellSuggestions { word, .. } => word.as_str(),
+                        _ => "",
+                    },
+                    spell_suggestions: match &self.overlay {
+                        Overlay::SpellSuggestions { suggestions, .. } => suggestions.as_slice(),
+                        _ => &[],
+                    },
+                    spell_suggestion_index: match &self.overlay {
+                        Overlay::SpellSuggestions { index, .. } => *index,
+                        _ => 0,
+                    },
                 };
 
                 ui::render(f, &state);
@@ -385,6 +405,53 @@ impl App {
             return;
         }
 
+        // Handle spell suggestions overlay
+        if let Overlay::SpellSuggestions { ref word, ref suggestions, index, line, col } = self.overlay.clone() {
+            match key.code {
+                KeyCode::Char('j') | KeyCode::Down => {
+                    if !suggestions.is_empty() && index < suggestions.len() - 1 {
+                        self.overlay = Overlay::SpellSuggestions {
+                            word: word.clone(),
+                            suggestions: suggestions.clone(),
+                            index: index + 1,
+                            line,
+                            col,
+                        };
+                    }
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    if index > 0 {
+                        self.overlay = Overlay::SpellSuggestions {
+                            word: word.clone(),
+                            suggestions: suggestions.clone(),
+                            index: index - 1,
+                            line,
+                            col,
+                        };
+                    }
+                }
+                KeyCode::Enter => {
+                    // Apply selected suggestion
+                    if let Some(suggestion) = suggestions.get(index) {
+                        let suggestion = suggestion.clone();
+                        self.apply_spell_suggestion(&suggestion, line, col);
+                    } else {
+                        self.overlay = Overlay::None;
+                    }
+                }
+                KeyCode::Tab => {
+                    // Add word to personal dictionary
+                    let word = word.clone();
+                    self.add_to_personal_dict(&word);
+                }
+                KeyCode::Esc | KeyCode::Char('q') => {
+                    self.overlay = Overlay::None;
+                }
+                _ => {}
+            }
+            return;
+        }
+
         // Normal key handling
         let action = input::handle_key(key, self.mode, &mut self.input_state);
         self.handle_action(action);
@@ -459,6 +526,9 @@ impl App {
                 // Show status briefly to indicate the change
                 self.show_status = true;
                 self.status_timer = Some(Instant::now());
+            }
+            Action::ShowSpellSuggestions => {
+                self.show_spell_suggestions();
             }
             Action::ShowHelp => self.overlay = Overlay::Help,
             Action::ShowStats => {
@@ -696,5 +766,78 @@ impl App {
             self.search.clear();
             self.load_versions();
         }
+    }
+
+    /// Show spell suggestions for word under cursor
+    fn show_spell_suggestions(&mut self) {
+        if !self.spell_checker.is_enabled() {
+            return;
+        }
+
+        let (line, col) = self.editor.cursor_position();
+        let content = self.editor.content();
+        
+        if line >= content.len_lines() {
+            return;
+        }
+
+        let line_text = content.line(line).to_string();
+        
+        // Get word at cursor position
+        if let Some((word, start, _end)) = self.spell_checker.word_at_position(&line_text, col) {
+            // Check if it's actually misspelled
+            if !self.spell_checker.check_word(&word) {
+                let suggestions = self.spell_checker.suggest(&word);
+                self.overlay = Overlay::SpellSuggestions {
+                    word,
+                    suggestions,
+                    index: 0,
+                    line,
+                    col: start,
+                };
+            }
+        }
+    }
+
+    /// Apply a spell suggestion - replace misspelled word with suggestion
+    fn apply_spell_suggestion(&mut self, suggestion: &str, line: usize, col: usize) {
+        let content = self.editor.content();
+        
+        if line >= content.len_lines() {
+            return;
+        }
+
+        let line_text = content.line(line).to_string();
+        
+        // Get word boundaries at the saved position
+        if let Some((_word, start, end)) = self.spell_checker.word_at_position(&line_text, col) {
+            // Move to the word
+            self.editor.move_cursor(crate::editor::Direction::Up, crate::editor::Unit::Document);
+            for _ in 0..line {
+                self.editor.move_cursor(crate::editor::Direction::Down, crate::editor::Unit::Line);
+            }
+            self.editor.move_cursor(crate::editor::Direction::Left, crate::editor::Unit::Line);
+            for _ in 0..start {
+                self.editor.move_cursor(crate::editor::Direction::Right, crate::editor::Unit::Char);
+            }
+            
+            // Delete the misspelled word
+            for _ in start..end {
+                self.editor.delete_char_forward();
+            }
+            
+            // Insert the suggestion
+            for c in suggestion.chars() {
+                self.editor.insert_char(c);
+            }
+        }
+        
+        self.overlay = Overlay::None;
+    }
+
+    /// Add word to personal dictionary
+    fn add_to_personal_dict(&mut self, word: &str) {
+        self.spell_checker.add_to_personal(word);
+        self.overlay = Overlay::None;
     }
 }
