@@ -287,13 +287,13 @@ fn render_content(frame: &mut Frame, area: Rect, state: &RenderState) -> (u16, u
             };
 
             // Then apply search highlighting on top
-            let styled_line = if !state.search_matches.is_empty() && !state.search_query.is_empty() {
+            
+
+            if !state.search_matches.is_empty() && !state.search_query.is_empty() {
                 highlight_matches_on_line(&base_line, state.search_query)
             } else {
                 base_line
-            };
-
-            styled_line
+            }
         })
         .collect();
 
