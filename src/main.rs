@@ -2,6 +2,7 @@ mod app;
 mod config;
 mod editor;
 mod export;
+mod focus;
 mod input;
 mod project;
 mod search;
