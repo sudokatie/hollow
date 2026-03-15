@@ -9,6 +9,7 @@ mod search;
 mod session;
 mod spell;
 mod stats;
+mod sync;
 mod theme;
 mod ui;
 mod versions;
