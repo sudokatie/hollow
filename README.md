@@ -197,7 +197,7 @@ Press `Escape` from Write mode to enter Navigate mode. This is where the vim use
 | s | Show writing statistics |
 | v | Browse version history |
 | f | Focus timer (Pomodoro) |
-| y | Git sync status |
+| Y | Git sync status |
 | P | Switch project documents |
 | ? | Show help (because nobody remembers all of these) |
 

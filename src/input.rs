@@ -230,7 +230,7 @@ fn handle_navigate_mode(key: KeyEvent, state: &mut InputState) -> Action {
         KeyCode::Char('s') => Action::ShowStats,
         KeyCode::Char('v') => Action::ShowVersions,
         KeyCode::Char('f') => Action::ShowFocus,
-        KeyCode::Char('y') => Action::ShowSync,
+        KeyCode::Char('Y') => Action::ShowSync,
         KeyCode::Char('P') => Action::ShowProjectDocs,
 
         // Arrow keys (also work in navigate mode)
