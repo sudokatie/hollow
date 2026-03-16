@@ -1,3 +1,7 @@
+//! Session tracking for writing statistics.
+
+#![allow(dead_code)]
+
 use std::time::{Duration, Instant};
 
 /// Tracks session statistics

@@ -17,6 +17,7 @@ pub struct RenderState<'a> {
     pub content: &'a str,
     pub cursor_line: usize,
     pub cursor_col: usize,
+    #[allow(dead_code)]
     pub mode: Mode,
     pub word_count: usize,
     pub elapsed: &'a str,
@@ -308,6 +309,7 @@ fn render_content(frame: &mut Frame, area: Rect, state: &RenderState) -> (u16, u
 }
 
 /// Highlight search matches in a line
+#[allow(dead_code)]
 fn highlight_matches(
     line: &str,
     query: &str,

@@ -1,3 +1,7 @@
+//! Search functionality for the editor.
+
+#![allow(dead_code)]
+
 use ropey::Rope;
 
 /// Search functionality for the editor

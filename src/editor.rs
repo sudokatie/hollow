@@ -102,6 +102,7 @@ impl Editor {
     }
 
     /// Check if this is the first edit (backup needed)
+    #[allow(dead_code)]
     pub fn needs_backup(&self) -> bool {
         !self.backup_created && self.original_content.is_some()
     }
@@ -680,11 +681,13 @@ impl Editor {
     }
 
     /// Get number of lines
+    #[allow(dead_code)]
     pub fn line_count(&self) -> usize {
         self.rope.len_lines()
     }
 
     /// Get a specific line as string
+    #[allow(dead_code)]
     pub fn line(&self, idx: usize) -> Option<String> {
         if idx < self.rope.len_lines() {
             Some(self.rope.line(idx).to_string())

@@ -1,6 +1,10 @@
 //! Statistics tracking for writing goals, streaks, and detailed analytics
 //!
 //! Stores daily word counts and session data in SQLite database at ~/.config/hollow/stats.db
+//!
+//! Note: Module is implemented but not yet wired into the main TUI. UI integration planned for v0.3.
+
+#![allow(dead_code)]
 
 use chrono::{Local, NaiveDate, NaiveDateTime};
 use rusqlite::{Connection, Result as SqlResult};

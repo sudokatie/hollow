@@ -2,6 +2,10 @@
 //!
 //! A project is a collection of related documents with shared settings.
 //! Projects are defined by a .hollow-project file (YAML format).
+//!
+//! Note: Module is implemented but not yet wired into the main TUI. UI integration planned for v0.3.
+
+#![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
 use std::fs;

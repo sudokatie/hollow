@@ -1,6 +1,10 @@
 //! Focus tracking with Pomodoro timer and distraction detection
 //!
 //! Tracks focus sessions, provides a Pomodoro timer, and detects idle/distraction periods.
+//!
+//! Note: Module is implemented but not yet wired into the main TUI. UI integration planned for v0.3.
+
+#![allow(dead_code)]
 
 use chrono::{DateTime, Duration, Local, NaiveDateTime};
 use rusqlite::{Connection, Result as SqlResult};
@@ -368,7 +372,7 @@ impl FocusTracker {
     pub fn end_session(&mut self, words_written: usize, completed: bool) -> SqlResult<FocusSession> {
         self.record_activity(); // Final activity recording
         
-        let mut session = self.current_session.take().unwrap_or_else(FocusSession::new);
+        let mut session = self.current_session.take().unwrap_or_default();
         session.end_time = Some(Local::now().naive_local());
         session.words_written = words_written;
         session.completed = completed;

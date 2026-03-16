@@ -3,6 +3,7 @@
 //! Stores document versions in SQLite database at ~/.config/hollow/versions.db
 //! Content is compressed with DEFLATE to minimize storage.
 
+#![allow(dead_code)]
 use chrono::{DateTime, Local};
 use flate2::read::DeflateDecoder;
 use flate2::write::DeflateEncoder;

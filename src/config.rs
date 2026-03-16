@@ -100,7 +100,9 @@ pub struct SpellingConfig {
     pub enabled: bool,
     #[serde(default = "default_language")]
     pub language: String,
+    /// Path to custom dictionary file (planned for v0.3)
     #[serde(default)]
+    #[allow(dead_code)]
     pub custom_dict: Option<String>,
 }
 

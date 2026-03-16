@@ -2,6 +2,7 @@
 //!
 //! Provides customizable color themes for the editor.
 
+#![allow(dead_code)]
 use ratatui::style::Color;
 use serde::Deserialize;
 

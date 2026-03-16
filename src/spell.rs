@@ -213,6 +213,7 @@ impl SpellChecker {
     }
 
     /// Check if spell checking is available (dictionary loaded)
+    #[allow(dead_code)]
     pub fn is_available(&self) -> bool {
         self.dictionary.is_some()
     }
@@ -233,6 +234,7 @@ impl SpellChecker {
     }
 
     /// Check a line of text and return misspellings
+    #[allow(clippy::explicit_counter_loop)]
     pub fn check_line(&self, line: &str, line_num: usize) -> Vec<Misspelling> {
         if !self.is_enabled() {
             return Vec::new();

@@ -2,6 +2,10 @@
 //!
 //! Provides sync functionality using git as the backend.
 //! Users can sync their writing projects to any git remote.
+//!
+//! Note: Module is implemented but not yet wired into the main TUI. UI integration planned for v0.3.
+
+#![allow(dead_code)]
 
 use git2::{
     Cred, FetchOptions, PushOptions, RemoteCallbacks, Repository, Signature, StatusOptions,
@@ -62,6 +66,7 @@ pub enum SyncStatus {
 
 /// Conflict resolution strategy.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub enum ConflictResolution {
     /// Keep local version.
     KeepLocal,
@@ -170,7 +175,7 @@ impl SyncManager {
         }
 
         // Check remote status
-        let remote = match repo.find_remote(&self.config.remote_name) {
+        let _remote = match repo.find_remote(&self.config.remote_name) {
             Ok(r) => r,
             Err(_) => return Ok(SyncStatus::NoRemote),
         };
