@@ -66,6 +66,10 @@ pub struct RenderState<'a> {
     pub show_focus: bool,
     pub focus_timer_display: &'a str,
     pub focus_timer_state: &'a str,
+    // Sync
+    pub show_sync: bool,
+    pub sync_status: &'a str,
+    pub sync_message: Option<&'a str>,
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -250,6 +254,12 @@ pub fn render(frame: &mut Frame, state: &RenderState) {
             frame, area,
             state.focus_timer_display,
             state.focus_timer_state,
+        );
+    } else if state.show_sync {
+        render_sync_overlay(
+            frame, area,
+            state.sync_status,
+            state.sync_message,
         );
     } else if state.search_active {
         render_search_prompt(frame, area, state.search_query);
@@ -1023,6 +1033,62 @@ fn render_focus_overlay(
             .borders(Borders::ALL)
             .title(" Focus Timer ")
             .border_style(Style::default().fg(state_color)))
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(para, overlay_area);
+}
+
+fn render_sync_overlay(
+    frame: &mut Frame,
+    area: Rect,
+    sync_status: &str,
+    sync_message: Option<&str>,
+) {
+    let width = 45.min(area.width - 4);
+    let height = 14.min(area.height - 2);
+    let x = (area.width - width) / 2;
+    let y = (area.height - height) / 2;
+
+    let overlay_area = Rect { x, y, width, height };
+    frame.render_widget(Clear, overlay_area);
+
+    let status_color = if sync_status.starts_with("Clean") {
+        Color::Green
+    } else if sync_status.starts_with("Conflict") {
+        Color::Red
+    } else if sync_status.starts_with("Modified") || sync_status.starts_with("Ahead") {
+        Color::Yellow
+    } else {
+        Color::DarkGray
+    };
+
+    let message_line = sync_message
+        .map(|m| format!("  Message: {}\n", m))
+        .unwrap_or_default();
+
+    let text = format!(
+        r#"
+  GIT SYNC
+
+  Status:  {}
+{}
+  Controls:
+    c - Commit changes
+    p - Push to remote
+    l - Pull from remote
+    r - Refresh status
+    Esc - Close
+
+"#,
+        sync_status,
+        message_line,
+    );
+
+    let para = Paragraph::new(text)
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title(" Sync ")
+            .border_style(Style::default().fg(status_color)))
         .style(Style::default().fg(Color::White));
 
     frame.render_widget(para, overlay_area);

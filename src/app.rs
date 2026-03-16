@@ -18,6 +18,7 @@ use crate::search::Search;
 use crate::session::Session;
 use crate::spell::SpellChecker;
 use crate::stats::StatsTracker;
+use crate::sync::{SyncConfig, SyncManager, SyncStatus};
 use crate::theme::Theme;
 use crate::ui::{self, RenderState};
 use crate::versions::{Version, VersionStore};
@@ -33,6 +34,7 @@ pub enum Overlay {
     VersionDiff(i64),  // Showing diff for version ID
     ProjectDocs,       // Project document picker
     Focus,             // Pomodoro timer display
+    Sync,              // Git sync status and controls
     QuitConfirm,
     SpellSuggestions {
         word: String,
@@ -76,6 +78,10 @@ pub struct App {
     // Focus tracking
     pub focus_timer: Option<PomodoroTimer>,
     pub focus_tracker: Option<FocusTracker>,
+    // Sync
+    pub sync_manager: Option<SyncManager>,
+    pub sync_status: SyncStatus,
+    pub sync_message: Option<String>,
 }
 
 impl App {
@@ -125,6 +131,10 @@ impl App {
         let focus_tracker = FocusTracker::new(pomodoro_config.clone()).ok();
         let focus_timer = Some(PomodoroTimer::new(pomodoro_config));
 
+        // Initialize sync manager
+        let sync_config = SyncConfig::default();
+        let sync_manager = Some(SyncManager::new(sync_config));
+
         Ok(Self {
             editor,
             session,
@@ -152,6 +162,9 @@ impl App {
             spell_checker,
             focus_timer,
             focus_tracker,
+            sync_manager,
+            sync_status: SyncStatus::NotInitialized,
+            sync_message: None,
             config,
         })
     }
@@ -218,6 +231,18 @@ impl App {
                     .map(|t| t.state.display())
                     .unwrap_or("Idle");
 
+                // Prepare sync status data
+                let sync_status_str = match &self.sync_status {
+                    SyncStatus::NotInitialized => "Not initialized".to_string(),
+                    SyncStatus::Clean => "Clean".to_string(),
+                    SyncStatus::Modified { files } => format!("Modified ({} files)", files.len()),
+                    SyncStatus::Ahead { commits } => format!("Ahead by {} commits", commits),
+                    SyncStatus::Behind { commits } => format!("Behind by {} commits", commits),
+                    SyncStatus::Diverged { ahead, behind } => format!("Diverged (+{}, -{})", ahead, behind),
+                    SyncStatus::Conflicts { files } => format!("Conflicts ({} files)", files.len()),
+                    SyncStatus::NoRemote => "No remote".to_string(),
+                };
+
                 // Check spelling if enabled
                 let spell_result = self.spell_checker.check_text(&content);
                 
@@ -278,6 +303,9 @@ impl App {
                     show_focus: self.overlay == Overlay::Focus,
                     focus_timer_display: &focus_timer_display,
                     focus_timer_state,
+                    show_sync: self.overlay == Overlay::Sync,
+                    sync_status: &sync_status_str,
+                    sync_message: self.sync_message.as_deref(),
                 };
 
                 ui::render(f, &state);
@@ -365,6 +393,29 @@ impl App {
                     if let Some(ref mut timer) = self.focus_timer {
                         timer.reset_cycle();
                     }
+                }
+                KeyCode::Esc => {
+                    self.overlay = Overlay::None;
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // Handle sync overlay
+        if self.overlay == Overlay::Sync {
+            match key.code {
+                KeyCode::Char('c') => {
+                    self.do_sync_commit();
+                }
+                KeyCode::Char('p') => {
+                    self.do_sync_push();
+                }
+                KeyCode::Char('l') => {
+                    self.do_sync_pull();
+                }
+                KeyCode::Char('r') => {
+                    self.refresh_sync_status();
                 }
                 KeyCode::Esc => {
                     self.overlay = Overlay::None;
@@ -614,6 +665,11 @@ impl App {
             }
             Action::ShowFocus => {
                 self.overlay = Overlay::Focus;
+            }
+            Action::ShowSync => {
+                // Refresh sync status before showing
+                self.refresh_sync_status();
+                self.overlay = Overlay::Sync;
             }
             Action::HideOverlay => self.overlay = Overlay::None,
 
@@ -905,5 +961,78 @@ impl App {
     fn add_to_personal_dict(&mut self, word: &str) {
         self.spell_checker.add_to_personal(word);
         self.overlay = Overlay::None;
+    }
+
+    /// Refresh sync status from git repository
+    fn refresh_sync_status(&mut self) {
+        if let Some(ref manager) = self.sync_manager {
+            // Try to open repo at file's parent directory
+            let repo_path = self.file_path.parent().unwrap_or(std::path::Path::new("."));
+            match manager.open(repo_path) {
+                Ok(repo) => {
+                    match manager.status(&repo) {
+                        Ok(status) => {
+                            self.sync_status = status;
+                            self.sync_message = None;
+                        }
+                        Err(e) => {
+                            self.sync_status = SyncStatus::NotInitialized;
+                            self.sync_message = Some(format!("Error: {:?}", e));
+                        }
+                    }
+                }
+                Err(_) => {
+                    self.sync_status = SyncStatus::NotInitialized;
+                    self.sync_message = Some("Not a git repository".to_string());
+                }
+            }
+        }
+    }
+
+    /// Perform sync operations
+    fn do_sync_commit(&mut self) {
+        if let Some(ref manager) = self.sync_manager {
+            let repo_path = self.file_path.parent().unwrap_or(std::path::Path::new("."));
+            if let Ok(repo) = manager.open(repo_path) {
+                let msg = format!("Update {}", self.file_path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("document"));
+                match manager.commit(&repo, &msg) {
+                    Ok(_) => self.sync_message = Some("Committed".to_string()),
+                    Err(e) => self.sync_message = Some(format!("Commit failed: {:?}", e)),
+                }
+                self.refresh_sync_status();
+            }
+        }
+    }
+
+    fn do_sync_push(&mut self) {
+        if let Some(ref manager) = self.sync_manager {
+            let repo_path = self.file_path.parent().unwrap_or(std::path::Path::new("."));
+            if let Ok(repo) = manager.open(repo_path) {
+                match manager.push(&repo) {
+                    Ok(_) => self.sync_message = Some("Pushed".to_string()),
+                    Err(e) => self.sync_message = Some(format!("Push failed: {:?}", e)),
+                }
+                self.refresh_sync_status();
+            }
+        }
+    }
+
+    fn do_sync_pull(&mut self) {
+        if let Some(ref manager) = self.sync_manager {
+            let repo_path = self.file_path.parent().unwrap_or(std::path::Path::new("."));
+            if let Ok(repo) = manager.open(repo_path) {
+                match manager.pull(&repo) {
+                    Ok(_) => {
+                        self.sync_message = Some("Pulled".to_string());
+                        // Reload file if it changed
+                        let _ = self.editor.load(&self.file_path);
+                    }
+                    Err(e) => self.sync_message = Some(format!("Pull failed: {:?}", e)),
+                }
+                self.refresh_sync_status();
+            }
+        }
     }
 }
