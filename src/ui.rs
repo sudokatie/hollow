@@ -62,6 +62,10 @@ pub struct RenderState<'a> {
     pub spell_suggestion_word: &'a str,
     pub spell_suggestions: &'a [String],
     pub spell_suggestion_index: usize,
+    // Focus/Pomodoro
+    pub show_focus: bool,
+    pub focus_timer_display: &'a str,
+    pub focus_timer_state: &'a str,
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -240,6 +244,12 @@ pub fn render(frame: &mut Frame, state: &RenderState) {
             state.spell_suggestion_word,
             state.spell_suggestions,
             state.spell_suggestion_index,
+        );
+    } else if state.show_focus {
+        render_focus_overlay(
+            frame, area,
+            state.focus_timer_display,
+            state.focus_timer_state,
         );
     } else if state.search_active {
         render_search_prompt(frame, area, state.search_query);
@@ -963,6 +973,56 @@ fn render_spell_suggestions_overlay(
     let title = format!(" Suggestions for '{}' ", word);
     let para = Paragraph::new(lines)
         .block(Block::default().borders(Borders::ALL).title(title))
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(para, overlay_area);
+}
+
+fn render_focus_overlay(
+    frame: &mut Frame,
+    area: Rect,
+    timer_display: &str,
+    timer_state: &str,
+) {
+    let width = 40.min(area.width - 4);
+    let height = 12.min(area.height - 2);
+    let x = (area.width - width) / 2;
+    let y = (area.height - height) / 2;
+
+    let overlay_area = Rect { x, y, width, height };
+    frame.render_widget(Clear, overlay_area);
+
+    let state_color = match timer_state {
+        "Working" => Color::Green,
+        "Short Break" | "Long Break" => Color::Cyan,
+        "Paused" => Color::Yellow,
+        _ => Color::DarkGray,
+    };
+
+    let text = format!(
+        r#"
+  FOCUS MODE
+
+  Status:  {}
+  Time:    {}
+
+  Controls:
+    s - Start work session
+    b - Start break
+    p - Pause/Resume
+    r - Reset cycle
+    Esc - Close
+
+"#,
+        timer_state,
+        timer_display,
+    );
+
+    let para = Paragraph::new(text)
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title(" Focus Timer ")
+            .border_style(Style::default().fg(state_color)))
         .style(Style::default().fg(Color::White));
 
     frame.render_widget(para, overlay_area);

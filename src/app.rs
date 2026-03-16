@@ -11,6 +11,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 
 use crate::config::Config;
 use crate::editor::Editor;
+use crate::focus::{FocusTracker, PomodoroConfig, PomodoroTimer};
 use crate::input::{self, Action, InputState, Mode};
 use crate::project::Project;
 use crate::search::Search;
@@ -31,6 +32,7 @@ pub enum Overlay {
     VersionView(i64),  // Viewing specific version by ID
     VersionDiff(i64),  // Showing diff for version ID
     ProjectDocs,       // Project document picker
+    Focus,             // Pomodoro timer display
     QuitConfirm,
     SpellSuggestions {
         word: String,
@@ -71,6 +73,9 @@ pub struct App {
     pub theme: Theme,
     // Spell checking
     pub spell_checker: SpellChecker,
+    // Focus tracking
+    pub focus_timer: Option<PomodoroTimer>,
+    pub focus_tracker: Option<FocusTracker>,
 }
 
 impl App {
@@ -115,6 +120,11 @@ impl App {
         let mut spell_checker = SpellChecker::new(&config.spelling.language);
         spell_checker.set_enabled(config.spelling.enabled);
 
+        // Initialize focus tracking
+        let pomodoro_config = PomodoroConfig::default();
+        let focus_tracker = FocusTracker::new(pomodoro_config.clone()).ok();
+        let focus_timer = Some(PomodoroTimer::new(pomodoro_config));
+
         Ok(Self {
             editor,
             session,
@@ -140,6 +150,8 @@ impl App {
             project_doc_index: 0,
             theme,
             spell_checker,
+            focus_timer,
+            focus_tracker,
             config,
         })
     }
@@ -195,6 +207,16 @@ impl App {
                     }
                     _ => None,
                 };
+
+                // Prepare focus timer data
+                let focus_timer_display = self.focus_timer
+                    .as_ref()
+                    .map(|t| t.format_remaining())
+                    .unwrap_or_else(|| "--:--".to_string());
+                let focus_timer_state = self.focus_timer
+                    .as_ref()
+                    .map(|t| t.state.display())
+                    .unwrap_or("Idle");
 
                 // Check spelling if enabled
                 let spell_result = self.spell_checker.check_text(&content);
@@ -253,6 +275,9 @@ impl App {
                         Overlay::SpellSuggestions { index, .. } => *index,
                         _ => 0,
                     },
+                    show_focus: self.overlay == Overlay::Focus,
+                    focus_timer_display: &focus_timer_display,
+                    focus_timer_state,
                 };
 
                 ui::render(f, &state);
@@ -308,6 +333,44 @@ impl App {
         // Handle stats overlay
         if self.overlay == Overlay::Stats {
             self.overlay = Overlay::None;
+            return;
+        }
+
+        // Handle focus overlay
+        if self.overlay == Overlay::Focus {
+            match key.code {
+                KeyCode::Char('s') => {
+                    if let Some(ref mut timer) = self.focus_timer {
+                        timer.start_work();
+                    }
+                    if let Some(ref mut tracker) = self.focus_tracker {
+                        tracker.start_session();
+                    }
+                }
+                KeyCode::Char('b') => {
+                    if let Some(ref mut timer) = self.focus_timer {
+                        timer.start_break();
+                    }
+                }
+                KeyCode::Char('p') => {
+                    if let Some(ref mut timer) = self.focus_timer {
+                        if timer.state.is_active() {
+                            timer.pause();
+                        } else {
+                            timer.resume();
+                        }
+                    }
+                }
+                KeyCode::Char('r') => {
+                    if let Some(ref mut timer) = self.focus_timer {
+                        timer.reset_cycle();
+                    }
+                }
+                KeyCode::Esc => {
+                    self.overlay = Overlay::None;
+                }
+                _ => {}
+            }
             return;
         }
 
@@ -548,6 +611,9 @@ impl App {
                     self.project_doc_index = 0;
                     self.overlay = Overlay::ProjectDocs;
                 }
+            }
+            Action::ShowFocus => {
+                self.overlay = Overlay::Focus;
             }
             Action::HideOverlay => self.overlay = Overlay::None,
 

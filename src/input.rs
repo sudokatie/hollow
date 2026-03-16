@@ -42,6 +42,7 @@ pub enum Action {
     ShowStats,
     ShowVersions,
     ShowProjectDocs,
+    ShowFocus,
     HideOverlay,
     // Search
     StartSearch,
@@ -223,10 +224,11 @@ fn handle_navigate_mode(key: KeyEvent, state: &mut InputState) -> Action {
         KeyCode::Char('n') => Action::SearchNext,
         KeyCode::Char('N') => Action::SearchPrev,
 
-        // Help, Stats, Versions, and Projects
+        // Help, Stats, Versions, Focus, and Projects
         KeyCode::Char('?') => Action::ShowHelp,
         KeyCode::Char('s') => Action::ShowStats,
         KeyCode::Char('v') => Action::ShowVersions,
+        KeyCode::Char('f') => Action::ShowFocus,
         KeyCode::Char('P') => Action::ShowProjectDocs,
 
         // Arrow keys (also work in navigate mode)
