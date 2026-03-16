@@ -20,6 +20,8 @@ Hollow embraces this. It's a writing environment for people who want to write, n
 - Word count and session time tracking (accountability without judgment)
 - Daily goals with progress bar and streak tracking
 - Writing statistics panel (total words, averages, trends)
+- Focus timer with Pomodoro workflow (work/break cycles)
+- Git sync for cloud backup (commit, push, pull from the editor)
 - Version history with diff view and restore
 - Export to HTML with clean typography
 - Search with highlighting
@@ -194,6 +196,8 @@ Press `Escape` from Write mode to enter Navigate mode. This is where the vim use
 | Ctrl+r | Redo |
 | s | Show writing statistics |
 | v | Browse version history |
+| f | Focus timer (Pomodoro) |
+| y | Git sync status |
 | P | Switch project documents |
 | ? | Show help (because nobody remembers all of these) |
 
@@ -280,6 +284,30 @@ Requires Hunspell dictionaries installed on your system:
 - macOS: Install via Homebrew: `brew install hunspell` then download dictionaries to `/usr/local/share/hunspell/`
 - Linux: Usually available via package manager (e.g., `apt install hunspell-en-us`)
 
+### Focus Timer
+
+Press `f` in Navigate mode to open the Focus Timer overlay. Pomodoro-style workflow:
+- `s` - Start a work session (default 25 minutes)
+- `b` - Start a break (short: 5 min, long: 15 min after 4 sessions)
+- `p` - Pause/resume the timer
+- `r` - Reset the cycle
+- `Esc` - Close overlay
+
+The timer runs in the background. Track your focus sessions to build better writing habits.
+
+### Git Sync
+
+Press `y` in Navigate mode to open the Git Sync overlay. Manage version control without leaving the editor:
+- `c` - Commit current changes
+- `p` - Push to remote
+- `l` - Pull from remote
+- `r` - Refresh status
+- `Esc` - Close overlay
+
+Status is color-coded: green (clean), yellow (modified/ahead), red (conflicts).
+
+Requires your document to be in a git repository with a configured remote.
+
 ## Philosophy
 
 1. **Less is more.** Every feature earns its place by helping you write. If it doesn't help you write, it doesn't belong.
@@ -312,6 +340,8 @@ Requires Hunspell dictionaries installed on your system:
 - [x] Project document switcher UI (press P in Navigate mode)
 - [x] Spell checking with suggestion popup
 - [x] Custom themes
+- [x] Focus timer with Pomodoro workflow (press f in Navigate mode)
+- [x] Git sync overlay (press y in Navigate mode)
 
 See [ROADMAP.md](ROADMAP.md) for details.
 
