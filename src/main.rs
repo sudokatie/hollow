@@ -13,6 +13,7 @@ mod sync;
 mod theme;
 mod ui;
 mod versions;
+mod voice;
 
 use std::io::{self, stdout};
 use std::path::PathBuf;

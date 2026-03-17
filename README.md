@@ -343,6 +343,11 @@ Requires your document to be in a git repository with a configured remote.
 - [x] Focus timer with Pomodoro workflow (press f in Navigate mode)
 - [x] Git sync overlay (press y in Navigate mode)
 
+### v0.4 (Planned)
+- [ ] Voice dictation (Whisper integration)
+- [ ] Voice commands for navigation
+- [ ] Collaborative editing (CRDT)
+
 See [ROADMAP.md](ROADMAP.md) for details.
 
 ## Building from Source
