@@ -460,7 +460,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let manager = SyncManager::new(SyncConfig::default());
         
-        let repo = manager.init(tmp.path()).unwrap();
+        let _repo = manager.init(tmp.path()).unwrap();
         assert!(tmp.path().join(".git").exists());
         assert!(tmp.path().join(".gitignore").exists());
     }

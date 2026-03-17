@@ -370,8 +370,6 @@ mod tests {
 
     #[test]
     fn test_voice_command_to_action() {
-        use crate::input::Action;
-        
         // Commands that map to actions
         assert!(VoiceCommand::GoToStart.to_action().is_some());
         assert!(VoiceCommand::GoToEnd.to_action().is_some());
