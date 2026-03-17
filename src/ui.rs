@@ -70,6 +70,9 @@ pub struct RenderState<'a> {
     pub show_sync: bool,
     pub sync_status: &'a str,
     pub sync_message: Option<&'a str>,
+    // Voice dictation
+    pub show_voice: bool,
+    pub voice_available: bool,
 }
 
 const WRAP_INDENT: &str = "  "; // 2 spaces for wrapped line continuation per spec 4.3
@@ -260,6 +263,11 @@ pub fn render(frame: &mut Frame, state: &RenderState) {
             frame, area,
             state.sync_status,
             state.sync_message,
+        );
+    } else if state.show_voice {
+        render_voice_overlay(
+            frame, area,
+            state.voice_available,
         );
     } else if state.search_active {
         render_search_prompt(frame, area, state.search_query);
@@ -1088,6 +1096,62 @@ fn render_sync_overlay(
         .block(Block::default()
             .borders(Borders::ALL)
             .title(" Sync ")
+            .border_style(Style::default().fg(status_color)))
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(para, overlay_area);
+}
+
+fn render_voice_overlay(
+    frame: &mut Frame,
+    area: Rect,
+    voice_available: bool,
+) {
+    let width = 50.min(area.width - 4);
+    let height = 16.min(area.height - 2);
+    let x = (area.width - width) / 2;
+    let y = (area.height - height) / 2;
+
+    let overlay_area = Rect { x, y, width, height };
+    frame.render_widget(Clear, overlay_area);
+
+    let status = if voice_available {
+        "Whisper CLI found"
+    } else {
+        "Whisper CLI not found (install: pip install openai-whisper)"
+    };
+
+    let status_color = if voice_available {
+        Color::Green
+    } else {
+        Color::Red
+    };
+
+    let text = format!(
+        r#"
+  VOICE DICTATION
+
+  Status:  {}
+
+  Voice Commands:
+    "go to line N"     - Jump to line
+    "go to start/end"  - Navigate
+    "delete line"      - Delete current line
+    "undo" / "redo"    - Undo/redo
+    "save" / "quit"    - Save/quit
+
+  (Recording not yet implemented)
+
+  Press Esc to close
+
+"#,
+        status,
+    );
+
+    let para = Paragraph::new(text)
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title(" Voice ")
             .border_style(Style::default().fg(status_color)))
         .style(Style::default().fg(Color::White));
 

@@ -21,6 +21,7 @@ use crate::stats::StatsTracker;
 use crate::sync::{SyncConfig, SyncManager, SyncStatus};
 use crate::theme::Theme;
 use crate::ui::{self, RenderState};
+use crate::voice::{VoiceConfig, VoiceManager};
 use crate::versions::{Version, VersionStore};
 
 /// Overlay state
@@ -35,6 +36,7 @@ pub enum Overlay {
     ProjectDocs,       // Project document picker
     Focus,             // Pomodoro timer display
     Sync,              // Git sync status and controls
+    Voice,             // Voice dictation controls
     QuitConfirm,
     SpellSuggestions {
         word: String,
@@ -82,6 +84,9 @@ pub struct App {
     pub sync_manager: Option<SyncManager>,
     pub sync_status: SyncStatus,
     pub sync_message: Option<String>,
+    // Voice dictation
+    pub voice_manager: Option<VoiceManager>,
+    pub voice_available: bool,
 }
 
 impl App {
@@ -165,6 +170,8 @@ impl App {
             sync_manager,
             sync_status: SyncStatus::NotInitialized,
             sync_message: None,
+            voice_manager: None, // Initialized on first use
+            voice_available: false,
             config,
         })
     }
@@ -306,6 +313,8 @@ impl App {
                     show_sync: self.overlay == Overlay::Sync,
                     sync_status: &sync_status_str,
                     sync_message: self.sync_message.as_deref(),
+                    show_voice: self.overlay == Overlay::Voice,
+                    voice_available: self.voice_available,
                 };
 
                 ui::render(f, &state);
@@ -670,6 +679,15 @@ impl App {
                 // Refresh sync status before showing
                 self.refresh_sync_status();
                 self.overlay = Overlay::Sync;
+            }
+            Action::ShowVoice => {
+                // Initialize voice manager if not already done
+                if self.voice_manager.is_none() {
+                    let manager = VoiceManager::new(VoiceConfig::default());
+                    self.voice_available = manager.is_available();
+                    self.voice_manager = Some(manager);
+                }
+                self.overlay = Overlay::Voice;
             }
             Action::HideOverlay => self.overlay = Overlay::None,
 
