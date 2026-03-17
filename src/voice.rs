@@ -88,6 +88,32 @@ pub enum VoiceCommand {
     Unknown(String),
 }
 
+impl VoiceCommand {
+    /// Convert voice command to input Action for execution.
+    pub fn to_action(&self) -> Option<crate::input::Action> {
+        use crate::editor::{Direction, Unit};
+        use crate::input::Action;
+        
+        match self {
+            VoiceCommand::GoToStart => Some(Action::MoveCursor(Direction::Up, Unit::Document)),
+            VoiceCommand::GoToEnd => Some(Action::MoveCursor(Direction::Down, Unit::Document)),
+            VoiceCommand::NextParagraph => Some(Action::MoveCursor(Direction::Down, Unit::Paragraph)),
+            VoiceCommand::PrevParagraph => Some(Action::MoveCursor(Direction::Up, Unit::Paragraph)),
+            VoiceCommand::DeleteLine => Some(Action::DeleteLine),
+            VoiceCommand::Undo => Some(Action::Undo),
+            VoiceCommand::Redo => Some(Action::Redo),
+            VoiceCommand::Save => Some(Action::Save),
+            VoiceCommand::Quit => Some(Action::Quit),
+            VoiceCommand::Help => Some(Action::ShowHelp),
+            // These need special handling in the app
+            VoiceCommand::GoToLine(_) => None,
+            VoiceCommand::Insert(_) => None,
+            VoiceCommand::DeleteWord => None, // Not directly mapped
+            VoiceCommand::Unknown(_) => None,
+        }
+    }
+}
+
 /// Errors from voice operations.
 #[derive(Debug)]
 pub enum VoiceError {
@@ -205,6 +231,58 @@ impl VoiceManager {
             }
         }
     }
+
+    /// Check if SoX recording is available.
+    pub fn is_recording_available(&self) -> bool {
+        Command::new("rec")
+            .arg("--help")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
+    /// Record audio to a file using SoX.
+    /// Returns the path to the recorded file.
+    pub fn record(&self, duration_secs: u32) -> Result<PathBuf, VoiceError> {
+        let output_path = self.config.temp_dir.join("hollow_voice.wav");
+        
+        // Use SoX's rec command
+        let mut cmd = Command::new("rec");
+        cmd.arg("-q") // Quiet
+            .arg(&output_path)
+            .arg("rate")
+            .arg("16k") // 16kHz for Whisper
+            .arg("channels")
+            .arg("1"); // Mono
+        
+        // Add duration limit if specified
+        if duration_secs > 0 {
+            cmd.arg("trim")
+                .arg("0")
+                .arg(duration_secs.to_string());
+        }
+        
+        let output = cmd.output()?;
+        
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(VoiceError::RecordingFailed(stderr.to_string()));
+        }
+        
+        Ok(output_path)
+    }
+
+    /// Record audio, transcribe it, and parse as a command.
+    /// This is the main entry point for voice dictation.
+    pub fn listen_and_transcribe(&self, duration_secs: u32) -> Result<VoiceCommand, VoiceError> {
+        let audio_path = self.record(duration_secs)?;
+        let text = self.transcribe(&audio_path)?;
+        
+        // Clean up audio file
+        let _ = std::fs::remove_file(&audio_path);
+        
+        Ok(self.parse_command(&text))
+    }
 }
 
 #[cfg(test)]
@@ -288,5 +366,37 @@ mod tests {
             VoiceError::RecordingFailed("mic error".to_string()).to_string(),
             "Recording failed: mic error"
         );
+    }
+
+    #[test]
+    fn test_voice_command_to_action() {
+        use crate::input::Action;
+        
+        // Commands that map to actions
+        assert!(VoiceCommand::GoToStart.to_action().is_some());
+        assert!(VoiceCommand::GoToEnd.to_action().is_some());
+        assert!(VoiceCommand::DeleteLine.to_action().is_some());
+        assert!(VoiceCommand::Undo.to_action().is_some());
+        assert!(VoiceCommand::Redo.to_action().is_some());
+        assert!(VoiceCommand::Save.to_action().is_some());
+        assert!(VoiceCommand::Quit.to_action().is_some());
+        assert!(VoiceCommand::Help.to_action().is_some());
+        
+        // Commands that need special handling
+        assert!(VoiceCommand::GoToLine(42).to_action().is_none());
+        assert!(VoiceCommand::Insert("text".to_string()).to_action().is_none());
+        assert!(VoiceCommand::Unknown("?".to_string()).to_action().is_none());
+    }
+
+    #[test]
+    fn test_voice_command_to_action_types() {
+        use crate::input::Action;
+        
+        assert_eq!(VoiceCommand::Save.to_action(), Some(Action::Save));
+        assert_eq!(VoiceCommand::Quit.to_action(), Some(Action::Quit));
+        assert_eq!(VoiceCommand::Undo.to_action(), Some(Action::Undo));
+        assert_eq!(VoiceCommand::Redo.to_action(), Some(Action::Redo));
+        assert_eq!(VoiceCommand::DeleteLine.to_action(), Some(Action::DeleteLine));
+        assert_eq!(VoiceCommand::Help.to_action(), Some(Action::ShowHelp));
     }
 }
