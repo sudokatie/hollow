@@ -45,6 +45,10 @@ pub enum Action {
     ShowFocus,
     ShowSync,
     ShowVoice,
+    ShowCollab,
+    CollabHost,
+    CollabJoin,
+    CollabDisconnect,
     HideOverlay,
     // Search
     StartSearch,
@@ -98,6 +102,7 @@ fn handle_universal(key: KeyEvent) -> Option<Action> {
         (KeyCode::Char('y'), KeyModifiers::CONTROL) => Some(Action::Redo),
         (KeyCode::Char(';'), KeyModifiers::CONTROL) => Some(Action::ToggleSpellCheck),
         (KeyCode::Char('.'), KeyModifiers::CONTROL) => Some(Action::ShowSpellSuggestions),
+        (KeyCode::Char('p'), KeyModifiers::CONTROL) => Some(Action::ShowCollab),
         _ => None,
     }
 }

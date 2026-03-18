@@ -37,6 +37,9 @@ pub enum Overlay {
     Focus,             // Pomodoro timer display
     Sync,              // Git sync status and controls
     Voice,             // Voice dictation controls
+    Collab,            // Collaboration peer list
+    CollabHost,        // Hosting session dialog
+    CollabJoin,        // Join session dialog
     QuitConfirm,
     SpellSuggestions {
         word: String,
@@ -688,6 +691,19 @@ impl App {
                     self.voice_manager = Some(manager);
                 }
                 self.overlay = Overlay::Voice;
+            }
+            Action::ShowCollab => {
+                self.overlay = Overlay::Collab;
+            }
+            Action::CollabHost => {
+                self.overlay = Overlay::CollabHost;
+            }
+            Action::CollabJoin => {
+                self.overlay = Overlay::CollabJoin;
+            }
+            Action::CollabDisconnect => {
+                // Disconnect handled elsewhere when collab is integrated
+                self.overlay = Overlay::None;
             }
             Action::HideOverlay => self.overlay = Overlay::None,
 
