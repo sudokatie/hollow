@@ -11,9 +11,10 @@ use super::network::{NetworkClient, NetworkEvent, NetworkServer, DEFAULT_PORT};
 use super::session::{CollabSession, PeerInfo};
 
 /// Mode of collaboration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CollabMode {
     /// Not collaborating.
+    #[default]
     None,
     /// Hosting a session.
     Host,

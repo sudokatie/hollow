@@ -1,5 +1,6 @@
 mod app;
 mod collab;
+mod collab_ui;
 mod config;
 mod editor;
 mod export;
